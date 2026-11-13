@@ -42,7 +42,12 @@ void main() {
   vec3 d = normalize(vDir);
   float lon = atan(d.x, -d.z);
   float lat = asin(clamp(d.y, -1.0, 1.0));
-  vec3 col = skyGrade(texture2D(uSky, skyUV(lon, max(lat, 0.012))).rgb, d);
+  // explicit gradients, unwrapped across the +-180 degree seam of a full-circle sky, so no mip line shows there
+  vec2 uv = skyUV(lon, max(lat, 0.012));
+  vec2 gx = dFdx(uv), gy = dFdy(uv);
+  gx.x -= floor(gx.x + 0.5);
+  gy.x -= floor(gy.x + 0.5);
+  vec3 col = skyGrade(textureGrad(uSky, uv, gx, gy).rgb, d);
   col = mix(belowHorizon(lon, lat), col, smoothstep(0.004, 0.024, lat));
 
   // sun: small hot disc + layered bloom, screened over the photo
