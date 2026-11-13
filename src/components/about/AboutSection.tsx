@@ -25,8 +25,8 @@ interface AboutSectionProps {
   /** true whenever any of the page can be seen, including while it is still arriving */
   visible: boolean
   onHome: () => void
-  /** starts the move to the next page; not wired up until that page exists */
-  onNext?: () => void
+  /** takes the visitor on to the simulator */
+  onNext: () => void
 }
 
 /**

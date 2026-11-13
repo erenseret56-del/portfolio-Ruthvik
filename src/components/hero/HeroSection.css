@@ -38,6 +38,13 @@
   inset: 0;
 }
 
+/* simulator in front: the timeline's inline styles must not bring the copy back */
+.hero--bare .hero__content,
+.hero--bare .hero__grade {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
 .hero__curtain {
   position: absolute;
   inset: 0;

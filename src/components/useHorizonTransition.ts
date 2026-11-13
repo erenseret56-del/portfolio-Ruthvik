@@ -8,22 +8,36 @@ import {
   flybyTailNdcY,
   heroLayout,
 } from './hero/flightState'
+import { requestSimSky, startSim, stopSim } from './sim/simState'
 
-/** hero / about = settled on that page; leaving / returning = the flight between them is under way */
-export type View = 'hero' | 'leaving' | 'about' | 'returning'
+/** The three places a visitor can be, each with its own address. */
+type Page = 'hero' | 'about' | 'sim'
+/** A page, or one of the moves between two of them: hero <-> about (leaving / returning), about <-> sim (boarding / landing). */
+export type View = Page | 'leaving' | 'returning' | 'boarding' | 'landing'
 
-const ABOUT_HASH = '#about'
-const viewFromUrl = (): 'hero' | 'about' => (window.location.hash === ABOUT_HASH ? 'about' : 'hero')
+const HASH: Record<Page, string> = { hero: '', about: '#about', sim: '#sim' }
+const pageFromUrl = (): Page => {
+  const { hash } = window.location
+  return hash === HASH.sim ? 'sim' : hash === HASH.about ? 'about' : 'hero'
+}
 
 type Ref<T extends HTMLElement> = RefObject<T | null>
 
 /**
- * Page change as one piece of flight: the aircraft accelerates out of the hero and drags the name away
- * with it, then makes a close climbing pass up the screen with the About page rising in its wake.
- * Going back simply lowers the About page off the sky again.
+ * Moves between the pages, each as a piece of flight.
+ *
+ * hero -> about: the aircraft accelerates out of the hero and drags the name away with it, then makes a
+ *   close climbing pass up the screen with the About page rising in its wake.
+ * about -> sim: the airfield drops away beneath you and you are in the hero's sky, at the controls.
+ * Going back reverses each: the About page rises over the simulator, or lowers off the hero.
  */
-export function useHorizonTransition(hero: Ref<HTMLElement>, glow: Ref<HTMLElement>, about: Ref<HTMLElement>) {
-  const [view, setView] = useState<View>(viewFromUrl)
+export function useHorizonTransition(
+  hero: Ref<HTMLElement>,
+  glow: Ref<HTMLElement>,
+  about: Ref<HTMLElement>,
+  simulator: Ref<HTMLElement>,
+) {
+  const [view, setView] = useState<View>(pageFromUrl)
   const current = useRef<View>(view)
   /** kept after it finishes so that going back can rewind everything it moved */
   const departure = useRef<gsap.core.Timeline | null>(null)
@@ -36,25 +50,40 @@ export function useHorizonTransition(hero: Ref<HTMLElement>, glow: Ref<HTMLEleme
     setView(next)
   }, [])
 
+  /** Put the hero's sky back into settled cruise, as it was before the flight to the About page. */
+  const restoreHero = useCallback(() => {
+    if (!departure.current) return
+    departure.current.progress(0, true).kill()
+    departure.current = null
+    Object.assign(flight, { closeUp: false, flyby: 0, along: 0, trailOpacity: 1, trailFade: CRUISE_TRAIL_FADE })
+  }, [])
+
+  const revealAboutText = useCallback((aboutEl: HTMLElement) => {
+    running.current = gsap
+      .timeline()
+      .fromTo(
+        aboutEl.querySelectorAll('[data-about-item]'),
+        { autoAlpha: 0, y: 26 },
+        { autoAlpha: 1, y: 0, duration: 1.1, ease: 'power3.out', stagger: 0.11, clearProps: 'transform' },
+      )
+  }, [])
+
+  // ---------- hero -> about ----------
+
   const toAbout = useCallback(() => {
     const heroEl = hero.current
     const glowEl = glow.current
     const aboutEl = about.current
     if (current.current !== 'hero' || !heroEl || !glowEl || !aboutEl) return
     show('leaving')
+    requestSimSky()
 
     const items = aboutEl.querySelectorAll('[data-about-item]')
     const arrive = () => {
       focusTarget.current = () => aboutEl
       show('about')
       aboutEl.scrollTop = 0
-      running.current = gsap
-        .timeline()
-        .fromTo(
-          items,
-          { autoAlpha: 0, y: 26 },
-          { autoAlpha: 1, y: 0, duration: 1.1, ease: 'power3.out', stagger: 0.11, clearProps: 'transform' },
-        )
+      revealAboutText(aboutEl)
     }
 
     if (flight.reducedMotion) {
@@ -118,19 +147,15 @@ export function useHorizonTransition(hero: Ref<HTMLElement>, glow: Ref<HTMLEleme
       .fromTo(flight, { flyby: 0 }, { flyby: 1, duration: 2.8, ease: 'none', onUpdate: wipe }, 1.85)
     departure.current = tl
     running.current = tl
-  }, [hero, glow, about, show])
+  }, [hero, glow, about, show, revealAboutText])
+
+  // ---------- about -> hero ----------
 
   const toHero = useCallback(() => {
     const aboutEl = about.current
     if (current.current !== 'about' || !aboutEl) return
     show('returning')
-
-    // put the sky back into settled cruise before it is uncovered
-    if (departure.current) {
-      departure.current.progress(0, true).kill()
-      departure.current = null
-      Object.assign(flight, { closeUp: false, flyby: 0, along: 0, trailOpacity: 1, trailFade: CRUISE_TRAIL_FADE })
-    }
+    restoreHero()
 
     const land = () => {
       gsap.set(aboutEl, { autoAlpha: 0, y: 0 })
@@ -145,44 +170,126 @@ export function useHorizonTransition(hero: Ref<HTMLElement>, glow: Ref<HTMLEleme
           ? { autoAlpha: 0, duration: 0.4 }
           : { y: window.innerHeight, duration: 1.05, ease: 'power3.inOut' },
       )
-  }, [hero, about, show])
+  }, [hero, about, show, restoreHero])
+
+  // ---------- about -> simulator ----------
+
+  const toSim = useCallback(() => {
+    const aboutEl = about.current
+    const simEl = simulator.current
+    if (current.current !== 'about' || !aboutEl || !simEl) return
+    show('boarding')
+    startSim(!flight.reducedMotion)
+
+    const takeControl = () => {
+      gsap.set(aboutEl, { autoAlpha: 0, y: 0 })
+      focusTarget.current = () => simEl
+      show('sim')
+    }
+    // the airfield falls away below; the instruments come up once there is sky to see them against
+    running.current = gsap
+      .timeline({ onComplete: takeControl })
+      .to(
+        aboutEl,
+        flight.reducedMotion
+          ? { autoAlpha: 0, duration: 0.4 }
+          : { y: window.innerHeight, duration: 1.15, ease: 'power3.inOut' },
+        0,
+      )
+      .fromTo(simEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'power1.out' }, flight.reducedMotion ? 0.1 : 0.65)
+  }, [about, simulator, show])
+
+  // ---------- simulator -> about ----------
+
+  const toAboutFromSim = useCallback(() => {
+    const aboutEl = about.current
+    const simEl = simulator.current
+    if (current.current !== 'sim' || !aboutEl || !simEl) return
+    show('landing')
+
+    const land = () => {
+      stopSim()
+      gsap.set(simEl, { autoAlpha: 0 })
+      focusTarget.current = () => aboutEl
+      show('about')
+    }
+    const tl = gsap.timeline({ onComplete: land }).to(simEl, { autoAlpha: 0, duration: 0.45, ease: 'power1.out' }, 0)
+    if (flight.reducedMotion) tl.fromTo(aboutEl, { autoAlpha: 0, y: 0 }, { autoAlpha: 1, duration: 0.4 }, 0)
+    else
+      tl.fromTo(
+        aboutEl,
+        { autoAlpha: 1, y: window.innerHeight },
+        { y: 0, duration: 1.1, ease: 'power3.inOut', clearProps: 'transform' },
+        0,
+      )
+    running.current = tl
+  }, [about, simulator, show])
+
+  /** Be on a page at once, with no flight: for arriving by address, or a jump in the history that skips a page. */
+  const cutTo = useCallback(
+    (page: Page) => {
+      const aboutEl = about.current
+      const simEl = simulator.current
+      if (!aboutEl || !simEl) return
+      if (page === 'sim') startSim(!flight.reducedMotion)
+      else stopSim()
+      if (page === 'hero') restoreHero()
+      else requestSimSky()
+      gsap.set(aboutEl, { autoAlpha: page === 'about' ? 1 : 0, y: 0 })
+      gsap.set(simEl, { autoAlpha: page === 'sim' ? 1 : 0 })
+      show(page)
+    },
+    [about, simulator, show, restoreHero],
+  )
 
   useEffect(() => {
     focusTarget.current?.()?.focus({ preventScroll: true })
     focusTarget.current = null
   }, [view])
 
-  /** Follow the URL (back / forward buttons), finishing any flight still in the air first. */
-  const sync = useCallback(() => {
-    running.current?.progress(1)
-    if (viewFromUrl() === 'about') toAbout()
-    else toHero()
-  }, [toAbout, toHero])
+  /** Go to a page from wherever we have settled, by the flight between them if there is one. */
+  const travel = useCallback(
+    (to: Page) => {
+      running.current?.progress(1)
+      const from = current.current
+      if (from === to) return
+      if (from === 'hero' && to === 'about') toAbout()
+      else if (from === 'about' && to === 'hero') toHero()
+      else if (from === 'about' && to === 'sim') toSim()
+      else if (from === 'sim' && to === 'about') toAboutFromSim()
+      else cutTo(to)
+    },
+    [toAbout, toHero, toSim, toAboutFromSim, cutTo],
+  )
 
+  // back / forward buttons: follow the address
   useEffect(() => {
+    const sync = () => travel(pageFromUrl())
     window.addEventListener('popstate', sync)
     return () => window.removeEventListener('popstate', sync)
-  }, [sync])
+  }, [travel])
 
-  // opened directly on #about: the page is simply there
+  // opened directly on a page other than the hero: it is simply there
   useLayoutEffect(() => {
-    if (current.current === 'about') gsap.set(about.current, { autoAlpha: 1 })
-  }, [about])
+    if (current.current !== 'hero') cutTo(current.current as Page)
+  }, [cutTo])
 
+  /** Follow a link: only from a page we are settled on, and it becomes a new entry in the history. */
   const navigate = useCallback(
-    (target: 'hero' | 'about') => {
-      if (current.current !== (target === 'about' ? 'hero' : 'about')) return
+    (from: Page, to: Page) => {
+      if (current.current !== from) return
       const { pathname, search } = window.location
-      window.history.pushState(null, '', target === 'about' ? ABOUT_HASH : pathname + search)
-      if (target === 'about') toAbout()
-      else toHero()
+      window.history.pushState(null, '', HASH[to] || pathname + search)
+      travel(to)
     },
-    [toAbout, toHero],
+    [travel],
   )
 
   return {
     view,
-    goToAbout: useCallback(() => navigate('about'), [navigate]),
-    goToHero: useCallback(() => navigate('hero'), [navigate]),
+    goToAbout: useCallback(() => navigate('hero', 'about'), [navigate]),
+    goToHero: useCallback(() => navigate('about', 'hero'), [navigate]),
+    goToSim: useCallback(() => navigate('about', 'sim'), [navigate]),
+    leaveSim: useCallback(() => navigate('sim', 'about'), [navigate]),
   }
 }

@@ -1,9 +1,6 @@
 import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useEffect, type RefObject } from 'react'
 import { approachDistance, CRUISE_TRAIL_FADE, flight, heroLayout } from './flightState'
-
-gsap.registerPlugin(ScrollTrigger)
 
 /** px the aircraft tail must be past a glyph before that glyph starts to condense */
 const REVEAL_LEAD = 24
@@ -80,20 +77,6 @@ export function useHeroTimeline(root: RefObject<HTMLElement | null>, ready: bool
         .to(el, { '--streak': 0.28, duration: 2.4, ease: 'power2.inOut' }, 'settle')
         .to(fades, { autoAlpha: 1, y: 0, duration: 1.4, ease: 'power3.out', stagger: 0.32 }, 'settle+=1.2')
         .to(cta, { autoAlpha: 1, duration: 1.6, ease: 'power1.out' }, 'settle+=2.4')
-
-      // leaving the hero: copy drifts up and the camera tilts with the scroll
-      gsap.to('.hero__content', {
-        yPercent: -14,
-        autoAlpha: 0,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: el,
-          start: 'top top',
-          end: 'bottom top',
-          scrub: true,
-          onUpdate: (self) => (flight.scroll = self.progress),
-        },
-      })
 
       return () => gsap.ticker.remove(followAircraft)
     }, el)

@@ -16,10 +16,12 @@ interface HeroSectionProps {
   active: boolean
   /** fully hidden behind another page: nothing here needs to render */
   covered: boolean
+  /** only the sky is wanted (the simulator flies in it): the name and link stay out of the picture */
+  bare: boolean
   onExplore: () => void
 }
 
-export function HeroSection({ ref: root, active, covered, onExplore }: HeroSectionProps) {
+export function HeroSection({ ref: root, active, covered, bare, onExplore }: HeroSectionProps) {
   const [sceneReady, setSceneReady] = useState(false)
   const [ready, setReady] = useState(false)
   const [inView, setInView] = useState(true)
@@ -45,7 +47,7 @@ export function HeroSection({ ref: root, active, covered, onExplore }: HeroSecti
     return () => observer.disconnect()
   }, [root])
 
-  // stop rendering entirely while the hero is scrolled out of view
+  // stop rendering entirely if the hero is ever out of view
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting))
     observer.observe(root.current!)
@@ -79,7 +81,7 @@ export function HeroSection({ ref: root, active, covered, onExplore }: HeroSecti
   const onSceneReady = useCallback(() => setSceneReady(true), [])
 
   return (
-    <section className="hero" ref={root} aria-label="Introduction" inert={!active}>
+    <section className={bare ? 'hero hero--bare' : 'hero'} ref={root} aria-label="Introduction" inert={!active}>
       <Suspense fallback={null}>
         <HeroCanvas still={reduced} paused={!inView || covered} onReady={onSceneReady} />
       </Suspense>
