@@ -1,0 +1,79 @@
+/* All positions come from AirfieldBackdrop.tsx, which measures the page and sets these in px. */
+.airfield {
+  --horizon: 66%;
+  --canvas-top: 50%;
+  --canvas-height: 30%;
+  --sky-left: -4%;
+  --sky-top: 0px;
+  --sky-width: 108%;
+  --sky-height: 80%;
+  --glow-x: 30%;
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0d0c13;
+}
+
+/* the hero's sky, mirrored and taken down to dusk; it keeps drifting very slowly */
+.airfield__sky {
+  position: absolute;
+  left: var(--sky-left);
+  top: var(--sky-top);
+  width: var(--sky-width);
+  height: var(--sky-height);
+  background: url('/hero/sky.jpg') center / 100% 100% no-repeat;
+  scale: -1 1;
+  filter: brightness(0.74) saturate(0.95) contrast(1.08);
+  animation: airfield-drift 110s ease-in-out infinite alternate;
+  will-change: translate;
+}
+
+@keyframes airfield-drift {
+  from {
+    translate: -1.3% 0;
+  }
+  to {
+    translate: 1.3% 0;
+  }
+}
+
+/* night coming down from the top, last light held along the horizon; darker again behind the words */
+.airfield__dusk {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--horizon);
+  background:
+    radial-gradient(ellipse 46% 60% at 76% 62%, rgb(14 12 24 / 0.5), transparent 75%),
+    radial-gradient(ellipse 50% 46% at 24% 40%, rgb(14 12 24 / 0.42), transparent 75%),
+    linear-gradient(
+      to bottom,
+      rgb(11 11 22 / 0.95) 0%,
+      rgb(15 14 28 / 0.88) 30%,
+      rgb(24 19 36 / 0.74) 58%,
+      rgb(44 27 40 / 0.5) 82%,
+      rgb(70 38 42 / 0.26) 95%,
+      rgb(84 44 42 / 0.14) 100%
+    );
+}
+
+.airfield__ground {
+  position: absolute;
+  inset: var(--horizon) 0 0;
+  background: linear-gradient(to bottom, #2c1d22 0, #1b141b 1.4rem, #120f17 5rem, #0e0d14 11rem, #0c0b12 100%);
+}
+
+.airfield__canvas {
+  position: absolute;
+  left: 0;
+  top: var(--canvas-top);
+  width: 100%;
+  height: var(--canvas-height);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .airfield__sky {
+    animation: none;
+  }
+}

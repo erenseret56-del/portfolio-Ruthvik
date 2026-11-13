@@ -1,0 +1,222 @@
+/* ---------- the page ---------- */
+
+.about {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* hidden until the transition brings it in */
+  visibility: hidden;
+  opacity: 0;
+  outline: none;
+  color: #f4ece5;
+  background: #0d0c13;
+}
+
+/* everything that scrolls: the backdrop is as tall as the content, so the two never slide apart */
+.about__page {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: 100%;
+}
+
+/* while the aircraft passes, the page is only uncovered below its tail */
+.about[data-wipe] {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent var(--wipe-y), #000 calc(var(--wipe-y) + var(--wipe-feather)));
+  mask-image: linear-gradient(to bottom, transparent var(--wipe-y), #000 calc(var(--wipe-y) + var(--wipe-feather)));
+}
+
+/* last light along the rising edge of the page */
+.horizon-glow {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 4;
+  height: 30vh;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgb(255 196 140 / 0) 0%,
+    rgb(255 190 132 / 0.2) 38%,
+    rgb(238 150 96 / 0.3) 62%,
+    rgb(160 96 78 / 0.12) 86%,
+    rgb(120 80 80 / 0) 100%
+  );
+  will-change: transform;
+}
+
+.about__inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  column-gap: clamp(2.5rem, 7vw, 8rem);
+  align-content: start;
+  width: min(100% - 2 * clamp(1.5rem, 7vw, 8rem), 84rem);
+  margin: 0 auto;
+  padding: clamp(1.6rem, 4.5svh, 3rem) 0 clamp(2.5rem, 8svh, 5rem);
+}
+
+/* ---------- top bar ---------- */
+
+.about__bar {
+  grid-column: 1 / -1;
+  margin-bottom: clamp(3rem, 15svh, 9.5rem);
+}
+
+.about__home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9em;
+  padding: 0.6em 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(1.15rem, 1.4vw, 1.5rem);
+  letter-spacing: 0.06em;
+  color: rgb(244 236 229 / 0.82);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.about__home svg {
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.about__home:hover {
+  color: #fff;
+}
+
+.about__home:hover svg {
+  transform: translateX(-5px);
+}
+
+.about__home:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.7);
+  outline-offset: 6px;
+}
+
+/* ---------- statement ---------- */
+
+.about__eyebrow {
+  margin: 0 0 clamp(1.1rem, 3svh, 2rem);
+  font-size: clamp(0.64rem, 0.8vw, 0.9rem);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: #e9a877;
+}
+
+.about__title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(2.5rem, 5.1vw, 5.6rem);
+  line-height: 1.02;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+}
+
+.about__text {
+  align-self: end;
+  max-width: 34rem;
+  font-size: clamp(1rem, 1.12vw, 1.2rem);
+  line-height: 1.75;
+  color: rgb(244 236 229 / 0.74);
+}
+
+.about__text p {
+  margin: 0;
+}
+
+.about__text p + p {
+  margin-top: 1.1em;
+}
+
+.about__text p:first-child {
+  color: rgb(244 236 229 / 0.96);
+}
+
+/* ---------- what I do ---------- */
+
+.about__focus {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.5rem, 3.4vw, 3.5rem);
+  margin: clamp(3rem, 12svh, 7.5rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.about__focus-item {
+  padding-top: 1.5rem;
+  border-top: 1px solid rgb(244 236 229 / 0.2);
+}
+
+.about__focus-index {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: #e9a877;
+}
+
+.about__focus-title {
+  margin: 1.1rem 0 0.7rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.45rem, 1.9vw, 2rem);
+  line-height: 1.15;
+}
+
+.about__focus-text {
+  margin: 0;
+  max-width: 24rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: rgb(244 236 229 / 0.66);
+}
+
+/* ---------- narrow screens: one column ---------- */
+
+@media (max-width: 860px) {
+  .about__inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .about__bar {
+    margin-bottom: clamp(2.5rem, 9svh, 5rem);
+  }
+
+  .about__title {
+    font-size: clamp(2.3rem, 10.5vw, 4rem);
+  }
+
+  .about__text {
+    margin-top: clamp(1.6rem, 5svh, 2.6rem);
+  }
+
+  .about__focus {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: clamp(2.6rem, 8svh, 4rem);
+  }
+}
+
+@media (max-height: 520px) and (min-width: 861px) {
+  .about__bar {
+    margin-bottom: 2rem;
+  }
+
+  .about__focus {
+    margin-top: 2.5rem;
+  }
+}
