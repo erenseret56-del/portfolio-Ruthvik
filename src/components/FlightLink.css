@@ -1,0 +1,71 @@
+/* The onward link used at the foot of each page: tracked capitals, a hairline that draws across on hover, an arrow. */
+.flight-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.3em;
+  margin: 0;
+  padding: 1.1em 0.3em;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  font-size: clamp(0.68rem, 0.88vw, 1rem);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 0.92);
+  text-shadow: 0 1px 18px rgb(22 18 32 / 0.6);
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.3s ease;
+}
+
+.flight-link__label {
+  position: relative;
+  padding-bottom: 0.85em;
+}
+
+.flight-link__label::before,
+.flight-link__label::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0.42em;
+  bottom: 0;
+  height: 1px;
+  background: rgb(255 255 255 / 0.35);
+}
+
+.flight-link__label::after {
+  background: #fff;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.flight-link__arrow {
+  flex: none;
+  margin-bottom: 0.85em;
+  filter: drop-shadow(0 1px 8px rgb(22 18 32 / 0.6));
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.flight-link:hover,
+.flight-link:focus-visible {
+  color: #fff;
+}
+
+.flight-link:hover .flight-link__label::after,
+.flight-link:focus-visible .flight-link__label::after {
+  transform: scaleX(1);
+}
+
+.flight-link:hover .flight-link__arrow,
+.flight-link:focus-visible .flight-link__arrow {
+  transform: translateX(8px);
+}
+
+.flight-link:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.7);
+  outline-offset: 6px;
+}
