@@ -3,10 +3,15 @@ import { useEffect, useLayoutEffect, useMemo } from 'react'
 import { EquirectangularReflectionMapping, MathUtils, type PerspectiveCamera } from 'three'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 import { AIR_SPEED, flight, heroLayout } from '../flightState'
+import { sim } from '../../sim/simState'
 import { Aircraft } from './Aircraft'
 import { CloudLayers } from './CloudLayers'
 import { Contrail } from './Contrail'
+import { SimBeacons } from './SimBeacons'
+import { SimFlight } from './SimFlight'
+import { SimTrail } from './SimTrail'
 import { SkyBackground } from './SkyBackground'
+import { SkySource } from './SkySource'
 import { SUN_DIR } from './vectors'
 
 export const ENV_URL = '/hero/env.hdr'
@@ -19,12 +24,13 @@ function FlightClock() {
     if (flight.reducedMotion) return
     const dt = Math.min(delta, 0.05)
     flight.time += dt
-    flight.travel += AIR_SPEED * dt
+    // in the simulator the air goes by at whatever speed and heading the aircraft is actually flying
+    if (!sim.active) flight.travel += AIR_SPEED * dt
   }, -30)
   return null
 }
 
-/** Chase camera: fixed formation with gyro-style drift, pointer parallax and a scroll tilt. */
+/** Chase camera: fixed formation with gyro-style drift and pointer parallax. */
 function CameraRig() {
   const camera = useThree((s) => s.camera) as PerspectiveCamera
   const aspect = useThree((s) => s.size.width / s.size.height)
@@ -39,6 +45,12 @@ function CameraRig() {
   }, [camera, layout])
 
   useFrame((_, delta) => {
+    // the simulator flies its own camera (SimFlight); take the lens back when it is done
+    if (sim.active) return
+    if (camera.fov !== layout.fov) {
+      camera.fov = layout.fov
+      camera.updateProjectionMatrix()
+    }
     const t = flight.time
     const k = 1 - Math.exp(-delta * 2.2)
     eased.x += (flight.pointerX - eased.x) * k
@@ -46,7 +58,7 @@ function CameraRig() {
     // translating (not just rotating) the camera is what separates sky, cloud deck and aircraft
     camera.position.set(eased.x * 9 + 1.2 * Math.sin(0.17 * t), eased.y * 4 + 0.6 * Math.sin(0.23 * t + 1), 0)
     camera.rotation.set(
-      layout.pitch + (0.18 * Math.sin(0.21 * t) - eased.y * 0.25 - flight.scroll * 3.5) * D2R,
+      layout.pitch + (0.18 * Math.sin(0.21 * t) - eased.y * 0.25) * D2R,
       (0.22 * Math.sin(0.15 * t + 0.7) - eased.x * 0.4) * D2R,
       0.12 * Math.sin(0.11 * t) * D2R,
       'YXZ',
@@ -87,12 +99,16 @@ export function HeroScene({ onReady }: { onReady: () => void }) {
   return (
     <>
       <FlightClock />
+      <SkySource />
+      <SimFlight />
       <CameraRig />
       <Lighting />
       <SkyBackground />
       <CloudLayers />
       <Aircraft />
       <Contrail />
+      <SimBeacons />
+      <SimTrail />
     </>
   )
 }

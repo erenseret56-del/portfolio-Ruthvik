@@ -13,9 +13,10 @@ import {
   type WebGL3DRenderTarget,
 } from 'three'
 import { flight } from '../flightState'
-import { bakeCloudNoise, fullscreenMesh, fullscreenTriangle, skyCropUniform } from './fullscreen'
+import { sim } from '../../sim/simState'
+import { bakeCloudNoise, fullscreenMesh, fullscreenTriangle } from './fullscreen'
 import { cloudCompositeFragment, cloudCompositeVertex, cloudFragment, rayVertex } from './shaders'
-import { useSkyTexture } from './useSkyTexture'
+import { skyUniforms } from './skyUniforms'
 import { HEADING, SUN_DIR } from './vectors'
 
 /** Target width (fraction of the CSS viewport, with a floor for phones) and ray-march steps, best first. */
@@ -34,7 +35,6 @@ const FIELD_ORIGIN = new Vector3(2350, 0, 640)
  */
 export function CloudLayers() {
   const gl = useThree((s) => s.gl)
-  const sky = useSkyTexture()
   // baked on the first frame (and again after a remount), so it never outlives or predates its GL resources
   const noise = useRef<WebGL3DRenderTarget | null>(null)
   const target = useMemo(() => new WebGLRenderTarget(4, 4, { depthBuffer: false, minFilter: LinearFilter, magFilter: LinearFilter }), [])
@@ -44,8 +44,7 @@ export function CloudLayers() {
       vertexShader: rayVertex,
       fragmentShader: cloudFragment,
       uniforms: {
-        uSky: { value: sky },
-        uCrop: skyCropUniform(),
+        ...skyUniforms,
         uNoise: { value: null },
         uSunDir: { value: SUN_DIR },
         uOffset: { value: new Vector3() },
@@ -68,7 +67,7 @@ export function CloudLayers() {
       blendDst: OneMinusSrcAlphaFactor,
     })
     return { cloudScene, cloudMaterial, composite }
-  }, [sky, target])
+  }, [target])
 
   useEffect(
     () => () => {
@@ -103,7 +102,13 @@ export function CloudLayers() {
     noise.current ??= bakeCloudNoise(gl)
     cloudMaterial.uniforms.uNoise.value = noise.current.texture
     cloudMaterial.uniforms.uSteps.value = steps
-    cloudMaterial.uniforms.uOffset.value.copy(HEADING).multiplyScalar(flight.travel).add(FIELD_ORIGIN)
+    // the field slides under a camera that stays near the origin: by distance flown in the hero, and by
+    // the aircraft's actual position in the simulator
+    const offset = cloudMaterial.uniforms.uOffset.value.copy(HEADING).multiplyScalar(flight.travel).add(FIELD_ORIGIN)
+    if (sim.active) {
+      offset.x += sim.x
+      offset.z += sim.z
+    }
 
     gl.setRenderTarget(target)
     gl.render(cloudScene, camera)

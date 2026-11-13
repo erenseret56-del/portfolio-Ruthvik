@@ -37,8 +37,6 @@ export const flight = {
   tailScreenX: -1e4,
   pointerX: 0,
   pointerY: 0,
-  /** 0..1 progress of scrolling past the hero */
-  scroll: 0,
   /** true while the aircraft makes the close climbing pass that carries the next page in */
   closeUp: false,
   /** 0..1 progress of that pass */

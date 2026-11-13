@@ -16,6 +16,7 @@ import {
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { bobAt, flight, FLYBY_DIR, flybyPath, HEADING_YAW, heroLayout, restPosition } from '../flightState'
+import { sim } from '../../sim/simState'
 import { HEADING, trailOrigins } from './vectors'
 
 export const AIRCRAFT_URL = '/hero/aircraft.glb'
@@ -123,7 +124,11 @@ export function Aircraft() {
     const bank = flight.introBank
     const group = root.current
 
-    if (flight.closeUp) {
+    if (sim.active) {
+      // flown by the visitor: the scene keeps the aircraft over the origin and moves the world instead
+      group.position.set(0, sim.alt + 0.5 * bobAt(t), 0)
+      group.rotation.set(sim.bank + 0.8 * D2R * Math.sin(0.83 * t), Math.PI / 2 - sim.heading, sim.pitch + 2 * D2R, 'YZX')
+    } else if (flight.closeUp) {
       // locked to the lens rather than the world, so the pass frames identically on every screen
       const s = flight.flyby * pass.length
       group.position

@@ -14,7 +14,7 @@ useLoader.preload(GLTFLoader, AIRCRAFT_URL)
 interface HeroCanvasProps {
   /** render one still frame instead of animating */
   still: boolean
-  /** pause the render loop (hero scrolled out of view) */
+  /** pause the render loop (nothing of the sky can be seen) */
   paused: boolean
   onReady: () => void
 }

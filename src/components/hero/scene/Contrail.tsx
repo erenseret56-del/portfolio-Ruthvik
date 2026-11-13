@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { DoubleSide, PlaneGeometry, ShaderMaterial } from 'three'
 import { AIR_SPEED, flight } from '../flightState'
+import { sim } from '../../sim/simState'
 import { contrailFragment, contrailVertex } from './shaders'
 import { HEADING, trailOrigins } from './vectors'
 
@@ -54,7 +55,8 @@ export function Contrail() {
       uniforms.uTime.value = flight.time
       uniforms.uTravel.value = flight.travel
       uniforms.uFade.value = flight.trailFade
-      uniforms.uOpacity.value = flight.trailOpacity
+      // the simulator draws its own trail, one that can curve
+      uniforms.uOpacity.value = sim.active ? 0 : flight.trailOpacity
     }
   })
 
