@@ -1,0 +1,17 @@
+Third-party assets used by the hero section
+===========================================
+
+aircraft.glb
+  Airbus A330-300 model from Flightradar24's open 3D model set
+  https://github.com/Flightradar24/fr24-3d-models  (models/a333.glb)
+  Derived from the FlightGear / FGMEMBERS A330-300 aircraft.
+  License: GNU GPL v2. Converted from glTF 1.0 to glTF 2.0; geometry and textures unchanged.
+  If this model is redistributed, keep this notice and the GPL v2 terms with it.
+
+sky.jpg, env.hdr
+  Cropped, colour-graded and tonemapped from the HDRI "The Sky Is On Fire" on Poly Haven
+  https://polyhaven.com/a/the_sky_is_on_fire
+  License: CC0 1.0 (public domain).
+
+Fonts (bundled via @fontsource)
+  Cormorant Garamond and Inter, both SIL Open Font License 1.1.

@@ -1,0 +1,291 @@
+.hero {
+  --name-size: clamp(3.6rem, 8.4vw, 12.5rem);
+  --copy-left: 17vw;
+  --plane-x: 79%;
+  --plane-y: 43%;
+  --streak: 0.28;
+
+  position: relative;
+  isolation: isolate;
+  height: 100vh;
+  height: 100svh;
+  min-height: 22rem;
+  overflow: clip;
+  color: #fff;
+  /* still frame of the same sky: shows while WebGL boots, and stands in if it never does */
+  background: #2a2733 url('/hero/sky.jpg') 62% 30% / cover no-repeat;
+}
+
+.hero__canvas {
+  position: absolute !important;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* lens falloff + a soft pool of shade behind the copy so white type always reads */
+.hero__grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 46% 38% at 33% 47%, rgb(24 22 34 / 0.34), transparent 72%),
+    radial-gradient(ellipse 120% 105% at 58% 42%, transparent 52%, rgb(16 14 24 / 0.52) 100%),
+    linear-gradient(to top, rgb(16 15 24 / 0.38), transparent 26%);
+}
+
+.hero__content {
+  position: absolute;
+  inset: 0;
+}
+
+.hero__curtain {
+  position: absolute;
+  inset: 0;
+  background: #14131b;
+  pointer-events: none;
+}
+
+.hero__copy {
+  position: absolute;
+  left: var(--copy-left);
+  /* second line of the name sits on the contrail, which runs just below the aircraft's level */
+  top: calc(var(--plane-y) + 3.4svh - 1.34 * var(--name-size));
+  max-width: calc(100% - var(--copy-left) - 4vw);
+}
+
+/* ---------- name ---------- */
+
+.hero-name {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: var(--name-size);
+  line-height: 0.9;
+  letter-spacing: 0.045em;
+  white-space: nowrap;
+  filter: drop-shadow(0 0.03em 0.42em rgb(28 22 38 / 0.42));
+  will-change: transform;
+}
+
+.hero-name__line {
+  display: block;
+}
+
+.hero-name__line + .hero-name__line {
+  margin-left: 0.46em;
+}
+
+.hero-name__char {
+  position: relative;
+  display: inline-block;
+  padding: 0.04em 0.06em 0.1em 0;
+  margin-right: -0.06em;
+  background: linear-gradient(180deg, #ffffff 18%, #ffeede 58%, #f6cfae 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  will-change: transform, opacity, filter;
+}
+
+/* vapour smear trailing each glyph, strongest while the name is still forming */
+.hero-name__char::before {
+  content: attr(data-char);
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  -webkit-text-fill-color: rgb(255 240 226 / 0.9);
+  transform: translateX(-0.2em) scaleX(1.7);
+  transform-origin: 100% 50%;
+  filter: blur(0.075em);
+  opacity: calc(var(--streak) * 0.5);
+  pointer-events: none;
+}
+
+/* ---------- supporting copy ---------- */
+
+.hero-subtitle {
+  margin-top: clamp(1.4rem, 3.4svh, 2.6rem);
+  padding-left: 0.3em;
+  text-shadow: 0 1px 18px rgb(22 18 32 / 0.55);
+}
+
+.hero-subtitle__roles {
+  margin: 0;
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  font-size: clamp(0.64rem, 0.82vw, 0.95rem);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.9);
+}
+
+.hero-subtitle__role {
+  white-space: nowrap;
+}
+
+.hero-subtitle__dot {
+  display: inline-block;
+  margin: 0 1.5em 0 1.1em;
+  opacity: 0.75;
+}
+
+.hero-subtitle__tagline {
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+  margin: clamp(1.1rem, 3.2svh, 2.1rem) 0 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.1rem, 1.42vw, 1.75rem);
+  letter-spacing: 0.01em;
+  color: rgb(255 255 255 / 0.94);
+}
+
+.hero-subtitle__rule {
+  flex: none;
+  width: clamp(2.6rem, 4.4vw, 4.8rem);
+  height: 1px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.25));
+}
+
+/* ---------- scroll indicator ---------- */
+
+.hero-scroll {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1.4rem, 5svh, 3.4rem);
+  transform: translateX(-50%);
+  color: rgb(255 255 255 / 0.86);
+  pointer-events: none;
+}
+
+.hero-scroll__float {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.95rem;
+  animation: hero-float 3.6s ease-in-out infinite;
+}
+
+.hero-scroll__label {
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.4em;
+  margin-right: -0.4em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hero-scroll__wheel {
+  animation: hero-wheel 2.2s cubic-bezier(0.6, 0, 0.3, 1) infinite;
+}
+
+.hero-scroll__chevron {
+  margin-top: -0.2rem;
+  opacity: 0.8;
+}
+
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+@keyframes hero-wheel {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  70%,
+  100% {
+    transform: translateY(7px);
+    opacity: 0;
+  }
+}
+
+/* ---------- tablet / portrait: aircraft moves up, copy takes the full measure ---------- */
+
+@media (max-aspect-ratio: 11 / 10) {
+  .hero {
+    --name-size: clamp(2.9rem, 14.6vw, 8rem);
+    --copy-left: 7vw;
+  }
+
+  .hero__copy {
+    top: calc(var(--plane-y) + 7svh);
+  }
+
+  .hero__grade {
+    background:
+      radial-gradient(ellipse 90% 30% at 45% 56%, rgb(24 22 34 / 0.36), transparent 75%),
+      radial-gradient(ellipse 150% 100% at 50% 42%, transparent 55%, rgb(16 14 24 / 0.5) 100%),
+      linear-gradient(to top, rgb(16 15 24 / 0.42), transparent 28%);
+  }
+
+  .hero-subtitle__roles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+    font-size: clamp(0.62rem, 2.5vw, 0.9rem);
+    letter-spacing: 0.36em;
+  }
+
+  .hero-subtitle__dot {
+    display: none;
+  }
+
+  .hero-subtitle__tagline {
+    font-size: clamp(1.1rem, 4.6vw, 1.6rem);
+  }
+}
+
+/* ---------- short landscape (phones on their side): tighten everything vertically ---------- */
+
+@media (max-height: 520px) and (min-aspect-ratio: 11 / 10) {
+  .hero {
+    --name-size: clamp(2.4rem, min(7.4vw, 17svh), 6rem);
+    --copy-left: 10vw;
+  }
+
+  .hero-subtitle {
+    margin-top: 0.9rem;
+  }
+
+  .hero-subtitle__tagline {
+    margin-top: 0.7rem;
+    font-size: 1.05rem;
+  }
+
+  .hero-scroll {
+    left: auto;
+    right: 5vw;
+    bottom: 1rem;
+    transform: none;
+  }
+
+  .hero-scroll__mouse {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll__float,
+  .hero-scroll__wheel {
+    animation: none;
+  }
+
+  .hero-scroll__wheel {
+    opacity: 1;
+  }
+}
