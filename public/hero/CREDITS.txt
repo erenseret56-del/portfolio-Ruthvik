@@ -11,10 +11,12 @@ aircraft.glb
 ../about/aircraft-dusk.webp
   Side-on render of the same A330-300 model, used on the About page. Same source and licence as above.
 
-sky.jpg, env.hdr  (sky.jpg is also the About page's sky)
+sky.jpg, env.hdr, ../sim/sky-360.jpg  (sky.jpg is also the About page's sky; sky-360.jpg is the simulator's)
   Cropped, colour-graded and tonemapped from the HDRI "The Sky Is On Fire" on Poly Haven
   https://polyhaven.com/a/the_sky_is_on_fire
   License: CC0 1.0 (public domain).
+  sky-360.jpg is the full circle of the same photograph with the same grade; the promenade it was
+  taken from (buildings, a hill, lamp posts) has been painted out so only sky remains.
 
 Fonts (bundled via @fontsource)
   Cormorant Garamond and Inter, both SIL Open Font License 1.1.
