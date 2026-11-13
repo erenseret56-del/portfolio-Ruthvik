@@ -29,7 +29,6 @@ export function useHeroTimeline(root: RefObject<HTMLElement | null>, ready: bool
       const name = el.querySelector<HTMLElement>('.hero-name')!
       const chars = gsap.utils.toArray<HTMLElement>('.hero-name__char')
       const fades = gsap.utils.toArray<HTMLElement>('[data-hero-fade]')
-      const scrollHint = el.querySelector('[data-hero-scroll]')
       const { width, height } = el.getBoundingClientRect()
       const aspect = width / height
 
@@ -43,7 +42,6 @@ export function useHeroTimeline(root: RefObject<HTMLElement | null>, ready: bool
       gsap.set(chars, { opacity: 0, xPercent: -55, scaleX: 1.4, filter: 'blur(18px)', transformOrigin: '0% 60%' })
       gsap.set(name, { x: width * 0.022, y: height * 0.014, scale: 1.05, transformOrigin: '0% 50%' })
       gsap.set(fades, { autoAlpha: 0, y: 20 })
-      gsap.set(scrollHint, { autoAlpha: 0 })
 
       const pending = new Set(chars.keys())
       const reveal = (i: number, delay = 0) => {
@@ -78,7 +76,6 @@ export function useHeroTimeline(root: RefObject<HTMLElement | null>, ready: bool
         .to(name, { x: 0, y: 0, scale: 1, duration: 2.4, ease: 'power3.inOut' }, 'settle')
         .to(el, { '--streak': 0.28, duration: 2.4, ease: 'power2.inOut' }, 'settle')
         .to(fades, { autoAlpha: 1, y: 0, duration: 1.4, ease: 'power3.out', stagger: 0.32 }, 'settle+=1.2')
-        .to(scrollHint, { autoAlpha: 1, duration: 1.6, ease: 'power1.out' }, 'settle+=2.4')
 
       // leaving the hero: copy drifts up and the camera tilts with the scroll
       gsap.to('.hero__content', {

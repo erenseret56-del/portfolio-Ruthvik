@@ -151,69 +151,6 @@
   background: linear-gradient(90deg, rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.25));
 }
 
-/* ---------- scroll indicator ---------- */
-
-.hero-scroll {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(1.4rem, 5svh, 3.4rem);
-  transform: translateX(-50%);
-  color: rgb(255 255 255 / 0.86);
-  pointer-events: none;
-}
-
-.hero-scroll__float {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.95rem;
-  animation: hero-float 3.6s ease-in-out infinite;
-}
-
-.hero-scroll__label {
-  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
-  font-size: 0.66rem;
-  font-weight: 500;
-  letter-spacing: 0.4em;
-  margin-right: -0.4em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.hero-scroll__wheel {
-  animation: hero-wheel 2.2s cubic-bezier(0.6, 0, 0.3, 1) infinite;
-}
-
-.hero-scroll__chevron {
-  margin-top: -0.2rem;
-  opacity: 0.8;
-}
-
-@keyframes hero-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(6px);
-  }
-}
-
-@keyframes hero-wheel {
-  0% {
-    transform: translateY(0);
-    opacity: 0;
-  }
-  25% {
-    opacity: 1;
-  }
-  70%,
-  100% {
-    transform: translateY(7px);
-    opacity: 0;
-  }
-}
-
 /* ---------- tablet / portrait: aircraft moves up, copy takes the full measure ---------- */
 
 @media (max-aspect-ratio: 11 / 10) {
@@ -265,27 +202,5 @@
   .hero-subtitle__tagline {
     margin-top: 0.7rem;
     font-size: 1.05rem;
-  }
-
-  .hero-scroll {
-    left: auto;
-    right: 5vw;
-    bottom: 1rem;
-    transform: none;
-  }
-
-  .hero-scroll__mouse {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-scroll__float,
-  .hero-scroll__wheel {
-    animation: none;
-  }
-
-  .hero-scroll__wheel {
-    opacity: 1;
   }
 }

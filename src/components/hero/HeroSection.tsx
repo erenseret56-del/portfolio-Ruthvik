@@ -3,7 +3,6 @@ import { CRUISE_TRAIL_FADE, flight, heroLayout } from './flightState'
 import { HeroSubtitle } from './HeroSubtitle'
 import './HeroSection.css'
 import { NameReveal } from './NameReveal'
-import { ScrollIndicator } from './ScrollIndicator'
 import { useHeroTimeline } from './useHeroTimeline'
 
 const HeroCanvas = lazy(() => import('./scene/HeroCanvas'))
@@ -81,7 +80,6 @@ export function HeroSection() {
           <NameReveal />
           <HeroSubtitle />
         </div>
-        <ScrollIndicator />
       </div>
       <div className="hero__curtain" aria-hidden="true" />
     </section>
