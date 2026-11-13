@@ -4,6 +4,8 @@ import {
   AdditiveBlending,
   CanvasTexture,
   MathUtils,
+  Matrix4,
+  Quaternion,
   Sprite,
   SpriteMaterial,
   Vector3,
@@ -13,7 +15,7 @@ import {
   type Object3D,
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { bobAt, flight, HEADING_YAW, heroLayout, restPosition } from '../flightState'
+import { bobAt, flight, FLYBY_DIR, flybyPath, HEADING_YAW, heroLayout, restPosition } from '../flightState'
 import { HEADING, trailOrigins } from './vectors'
 
 export const AIRCRAFT_URL = '/hero/aircraft.glb'
@@ -23,6 +25,15 @@ const D2R = MathUtils.DEG2RAD
 const ENGINE_EXHAUSTS = [new Vector3(-1, -2.6, 9.4), new Vector3(-1, -2.6, -9.4)]
 const TAIL = new Vector3(-34, 3, 0)
 const TOWARD_CAMERA = new Vector3(Math.sin(HEADING_YAW), 0, Math.cos(HEADING_YAW))
+
+// Close pass attitude in camera space: nose along the pass, upper surfaces turned toward the lens.
+const FLYBY_ATTITUDE = (() => {
+  const nose = new Vector3(...FLYBY_DIR)
+  const top = new Vector3(0, 0, 1).addScaledVector(nose, -nose.z).normalize()
+  const starboard = new Vector3().crossVectors(nose, top)
+  return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(nose, top, starboard))
+})()
+const BODY_X = new Vector3(1, 0, 0)
 
 /** The source model ships with flat, fully rough materials and stray blend flags; give it painted-metal response. */
 function prepareModel(scene: Object3D) {
@@ -101,24 +112,38 @@ export function Aircraft() {
   const lights = useMemo(() => createNavLights(), [])
   const root = useRef<Group>(null!)
   const aspect = useThree((s) => s.size.width / s.size.height)
-  const rest = useMemo(() => new Vector3(...restPosition(heroLayout(aspect), aspect)), [aspect])
+  const layout = useMemo(() => heroLayout(aspect), [aspect])
+  const rest = useMemo(() => new Vector3(...restPosition(layout, aspect)), [layout, aspect])
+  const pass = useMemo(() => flybyPath(layout), [layout])
   const scratch = useMemo(() => new Vector3(), [])
+  const rollQuat = useMemo(() => new Quaternion(), [])
 
   useFrame(({ camera, size }) => {
     const t = flight.time
     const bank = flight.introBank
     const group = root.current
 
-    group.position
-      .copy(rest)
-      .addScaledVector(HEADING, flight.along + 5 * Math.sin(0.13 * t))
-      .addScaledVector(TOWARD_CAMERA, 16 * bank * bank + 2.5 * Math.sin(0.19 * t + 2))
-    group.position.y += bobAt(t)
+    if (flight.closeUp) {
+      // locked to the lens rather than the world, so the pass frames identically on every screen
+      const s = flight.flyby * pass.length
+      group.position
+        .set(pass.x0 + s * FLYBY_DIR[0], pass.y0 + s * FLYBY_DIR[1], -pass.depth0 + s * FLYBY_DIR[2])
+        .applyQuaternion(camera.quaternion)
+        .add(camera.position)
+      rollQuat.setFromAxisAngle(BODY_X, (11 - 17 * flight.flyby + 1.2 * Math.sin(1.7 * t)) * D2R)
+      group.quaternion.copy(camera.quaternion).multiply(FLYBY_ATTITUDE).multiply(rollQuat)
+    } else {
+      group.position
+        .copy(rest)
+        .addScaledVector(HEADING, flight.along + 5 * Math.sin(0.13 * t))
+        .addScaledVector(TOWARD_CAMERA, 16 * bank * bank + 2.5 * Math.sin(0.19 * t + 2))
+      group.position.y += bobAt(t)
 
-    const roll = (2 * Math.sin(0.31 * t + 0.5) + 0.7 * Math.sin(0.83 * t)) * D2R * (1 - 0.5 * bank) + 13 * D2R * bank
-    const pitch = (2.2 + 0.5 * Math.cos(0.42 * t) + 1.2 * bank) * D2R
-    const yaw = HEADING_YAW + (0.5 * Math.sin(0.23 * t) + 7 * bank) * D2R
-    group.rotation.set(roll, yaw, pitch, 'YZX')
+      const roll = (2 * Math.sin(0.31 * t + 0.5) + 0.7 * Math.sin(0.83 * t)) * D2R * (1 - 0.5 * bank) + 13 * D2R * bank
+      const pitch = (2.2 + 0.5 * Math.cos(0.42 * t) + 1.2 * bank) * D2R
+      const yaw = HEADING_YAW + (0.5 * Math.sin(0.23 * t) + 7 * bank) * D2R
+      group.rotation.set(roll, yaw, pitch, 'YZX')
+    }
     group.updateMatrixWorld()
 
     ENGINE_EXHAUSTS.forEach((p, i) => trailOrigins[i].copy(p).applyMatrix4(group.matrixWorld))

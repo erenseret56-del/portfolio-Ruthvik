@@ -10,7 +10,7 @@ const REVEAL_LEAD = 24
 
 /**
  * One timeline tells the whole opening: flight begins -> the name condenses out of the trail ->
- * the name settles -> supporting copy arrives. Afterwards only the WebGL scene keeps moving.
+ * the name settles -> supporting copy and the way onward arrive. Afterwards only the WebGL scene keeps moving.
  */
 export function useHeroTimeline(root: RefObject<HTMLElement | null>, ready: boolean) {
   useEffect(() => {
@@ -19,10 +19,13 @@ export function useHeroTimeline(root: RefObject<HTMLElement | null>, ready: bool
 
     const ctx = gsap.context(() => {
       const curtain = el.querySelector('.hero__curtain')
+      // hidden in CSS until now, so it cannot be clicked through the curtain while the scene loads
+      const cta = el.querySelector('[data-hero-cta]')
 
       if (flight.reducedMotion) {
         // no flight-in: the scene is already in its settled state, so just lift the curtain
         gsap.to(curtain, { autoAlpha: 0, duration: 0.6 })
+        gsap.to(cta, { autoAlpha: 1, duration: 0.6 })
         return
       }
 
@@ -76,6 +79,7 @@ export function useHeroTimeline(root: RefObject<HTMLElement | null>, ready: bool
         .to(name, { x: 0, y: 0, scale: 1, duration: 2.4, ease: 'power3.inOut' }, 'settle')
         .to(el, { '--streak': 0.28, duration: 2.4, ease: 'power2.inOut' }, 'settle')
         .to(fades, { autoAlpha: 1, y: 0, duration: 1.4, ease: 'power3.out', stagger: 0.32 }, 'settle+=1.2')
+        .to(cta, { autoAlpha: 1, duration: 1.6, ease: 'power1.out' }, 'settle+=2.4')
 
       // leaving the hero: copy drifts up and the camera tilts with the scroll
       gsap.to('.hero__content', {

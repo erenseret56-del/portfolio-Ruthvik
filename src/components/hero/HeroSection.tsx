@@ -1,5 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState, type RefObject } from 'react'
 import { CRUISE_TRAIL_FADE, flight, heroLayout } from './flightState'
+import { HeroCta } from './HeroCta'
 import { HeroSubtitle } from './HeroSubtitle'
 import './HeroSection.css'
 import { NameReveal } from './NameReveal'
@@ -9,8 +10,16 @@ const HeroCanvas = lazy(() => import('./scene/HeroCanvas'))
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export function HeroSection() {
-  const root = useRef<HTMLElement>(null)
+interface HeroSectionProps {
+  ref: RefObject<HTMLElement | null>
+  /** false while another page is in front, or on its way in */
+  active: boolean
+  /** fully hidden behind another page: nothing here needs to render */
+  covered: boolean
+  onExplore: () => void
+}
+
+export function HeroSection({ ref: root, active, covered, onExplore }: HeroSectionProps) {
   const [sceneReady, setSceneReady] = useState(false)
   const [ready, setReady] = useState(false)
   const [inView, setInView] = useState(true)
@@ -34,14 +43,14 @@ export function HeroSection() {
     const observer = new ResizeObserver(apply)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+  }, [root])
 
   // stop rendering entirely while the hero is scrolled out of view
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting))
     observer.observe(root.current!)
     return () => observer.disconnect()
-  }, [])
+  }, [root])
 
   useEffect(() => {
     if (reduced || !window.matchMedia('(pointer: fine)').matches) return
@@ -70,9 +79,9 @@ export function HeroSection() {
   const onSceneReady = useCallback(() => setSceneReady(true), [])
 
   return (
-    <section className="hero" ref={root} aria-label="Introduction">
+    <section className="hero" ref={root} aria-label="Introduction" inert={!active}>
       <Suspense fallback={null}>
-        <HeroCanvas still={reduced} paused={!inView} onReady={onSceneReady} />
+        <HeroCanvas still={reduced} paused={!inView || covered} onReady={onSceneReady} />
       </Suspense>
       <div className="hero__grade" aria-hidden="true" />
       <div className="hero__content">
@@ -80,6 +89,7 @@ export function HeroSection() {
           <NameReveal />
           <HeroSubtitle />
         </div>
+        <HeroCta onExplore={onExplore} />
       </div>
       <div className="hero__curtain" aria-hidden="true" />
     </section>
