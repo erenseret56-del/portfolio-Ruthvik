@@ -1,0 +1,609 @@
+/* The simulator's page is the WebGL sky itself; this layer is only what is drawn over it. */
+.sim {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  /* brought in by the page transition */
+  visibility: hidden;
+  opacity: 0;
+  outline: none;
+  color: #fff;
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.sim__hud {
+  position: absolute;
+  inset: 0;
+  /* soft shade top and bottom so the read-outs hold against bright sky and cloud */
+  background:
+    linear-gradient(to bottom, rgb(16 14 24 / 0.34), transparent 22%),
+    linear-gradient(to top, rgb(16 14 24 / 0.42), transparent 26%);
+  transition: opacity 0.5s ease;
+}
+
+.sim__touch {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+@media (pointer: coarse) {
+  .sim__touch {
+    pointer-events: auto;
+  }
+}
+
+.sim__stick {
+  --x: 50%;
+  --y: 50%;
+  --dx: 0px;
+  --dy: 0px;
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 7.5rem;
+  height: 7.5rem;
+  margin: -3.75rem 0 0 -3.75rem;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.sim__stick::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: -1.3rem 0 0 -1.3rem;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.85);
+  transform: translate(var(--dx), var(--dy));
+}
+
+.sim__stick[data-on] {
+  opacity: 1;
+}
+
+/* ---------- way back ---------- */
+
+.sim__bar {
+  position: absolute;
+  left: clamp(1.5rem, 7vw, 8rem);
+  top: clamp(1.6rem, 4.5svh, 3rem);
+}
+
+.sim__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9em;
+  padding: 0.6em 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(1.15rem, 1.4vw, 1.5rem);
+  letter-spacing: 0.06em;
+  color: rgb(255 255 255 / 0.88);
+  text-decoration: none;
+  text-shadow: 0 1px 16px rgb(22 18 32 / 0.6);
+  pointer-events: auto;
+  transition: color 0.3s ease;
+}
+
+.sim__back svg {
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sim__back:hover {
+  color: #fff;
+}
+
+.sim__back:hover svg {
+  transform: translateX(-5px);
+}
+
+.sim__back:focus-visible,
+.sim-mark:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.7);
+  outline-offset: 6px;
+}
+
+/* ---------- handover ---------- */
+
+.sim__handover {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  display: grid;
+  gap: 0.9rem;
+  width: min(90vw, 34rem);
+  margin: 0;
+  text-align: center;
+  text-shadow: 0 1px 22px rgb(22 18 32 / 0.65);
+  transform: translateX(-50%);
+  opacity: 0;
+}
+
+.sim__hud[data-live][data-mode='flight'] .sim__handover {
+  animation: sim-handover 6.5s ease 0.9s both;
+}
+
+.sim__handover-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(2rem, 3.6vw, 3.6rem);
+  line-height: 1;
+}
+
+.sim__handover-text {
+  font-size: clamp(0.8rem, 0.95vw, 1rem);
+  line-height: 1.6;
+  color: rgb(255 255 255 / 0.86);
+}
+
+@keyframes sim-handover {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  14%,
+  72% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}
+
+/* ---------- destination labels ---------- */
+
+.sim__marks {
+  position: absolute;
+  inset: 0;
+}
+
+.sim-mark {
+  --slot: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0;
+  padding: 0.7em 0.9em 0;
+  border: 0;
+  background: none;
+  color: rgb(255 255 255 / 0.94);
+  font: inherit;
+  font-size: clamp(0.66rem, 0.8vw, 0.9rem);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 16px rgb(22 18 32 / 0.7);
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  /* anchored by its foot to the point the scene reports */
+  translate: -50% -100%;
+  transition:
+    color 0.3s ease,
+    opacity 0.4s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sim-mark__name {
+  margin-right: -0.42em;
+}
+
+.sim-mark__distance {
+  font-size: 0.86em;
+  letter-spacing: 0.2em;
+  margin-right: -0.2em;
+  text-transform: none;
+  color: rgb(255 255 255 / 0.72);
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-mark__direction {
+  display: none;
+}
+
+/* hairline dropping from the label to its beacon */
+.sim-mark::after {
+  content: '';
+  width: 1px;
+  height: 1.9em;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.75), rgb(255 255 255 / 0));
+}
+
+.sim-mark:hover,
+.sim-mark[data-target] {
+  color: #ffd9a8;
+}
+
+.sim-mark[data-target] .sim-mark__distance {
+  color: #ffd9a8;
+}
+
+.sim-mark[data-side='none'] {
+  visibility: hidden;
+}
+
+/* beyond the edge of the frame: parked on that side, with an arrow */
+.sim-mark[data-side='left'],
+.sim-mark[data-side='right'] {
+  top: calc(44% + var(--slot) * 4.2em);
+  flex-direction: row;
+  align-items: center;
+  gap: 1.1em;
+  padding: 0.9em 0;
+  translate: none;
+}
+
+.sim-mark[data-side='left'] {
+  left: clamp(1.2rem, 3vw, 3rem);
+}
+
+.sim-mark[data-side='right'] {
+  left: auto;
+  right: clamp(1.2rem, 3vw, 3rem);
+  flex-direction: row-reverse;
+}
+
+.sim-mark[data-side='left']::after,
+.sim-mark[data-side='right']::after {
+  order: -1;
+  width: 0.62em;
+  height: 0.62em;
+  border: solid currentColor;
+  border-width: 0 0 1.5px 1.5px;
+  background: none;
+  transform: rotate(45deg);
+}
+
+.sim-mark[data-side='right']::after {
+  transform: rotate(-135deg);
+}
+
+/* ---------- instruments ---------- */
+
+.sim__instruments {
+  position: absolute;
+  left: clamp(1.5rem, 7vw, 8rem);
+  bottom: clamp(1.6rem, 5.5svh, 3.4rem);
+  display: flex;
+  gap: clamp(1.4rem, 2.6vw, 3rem);
+  margin: 0;
+  text-shadow: 0 1px 14px rgb(22 18 32 / 0.7);
+}
+
+.sim__instruments dt {
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.sim__instruments dd {
+  margin: 0.5rem 0 0;
+  font-size: clamp(0.9rem, 1.05vw, 1.15rem);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2em;
+}
+
+/* ---------- key hints ---------- */
+
+.sim__keys {
+  position: absolute;
+  right: clamp(1.5rem, 7vw, 8rem);
+  bottom: clamp(1.6rem, 5.5svh, 3.4rem);
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5rem;
+  text-shadow: 0 1px 14px rgb(22 18 32 / 0.7);
+}
+
+.sim__keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 2rem);
+  grid-template-areas: '. w .' 'a s d';
+  gap: 0.3rem;
+}
+
+.sim__keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5em;
+  border: 1px solid rgb(255 255 255 / 0.42);
+  border-radius: 0.4rem;
+  background: rgb(20 18 30 / 0.22);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgb(255 255 255 / 0.92);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.sim__keys kbd[data-held] {
+  border-color: #fff;
+  background: #fff;
+  color: #1a1722;
+  text-shadow: none;
+}
+
+.sim__keypad kbd:nth-child(1) {
+  grid-area: w;
+}
+.sim__keypad kbd:nth-child(2) {
+  grid-area: a;
+}
+.sim__keypad kbd:nth-child(3) {
+  grid-area: s;
+}
+.sim__keypad kbd:nth-child(4) {
+  grid-area: d;
+}
+
+.sim__legend {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.76);
+}
+
+.sim__legend kbd {
+  height: 1.5rem;
+  margin-right: 0.5em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sim__legend--touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .sim__keypad,
+  .sim__legend {
+    display: none;
+  }
+
+  .sim__legend--touch {
+    display: block;
+  }
+}
+
+/* ---------- reading: the panel is open, flight furniture steps back ---------- */
+
+.sim__hud[data-reading] .sim__keys,
+.sim__hud[data-reading] .sim__handover {
+  opacity: 0;
+  animation: none;
+}
+
+.sim__hud[data-reading] .sim-mark {
+  opacity: 0.55;
+}
+
+.sim__keys {
+  transition: opacity 0.4s ease;
+}
+
+/* ---------- no flight (reduced motion, or no WebGL): the destinations are simply a menu ---------- */
+
+.sim__hud[data-mode='menu'] .sim__instruments,
+.sim__hud[data-mode='menu'] .sim__keys,
+.sim__hud[data-mode='menu'] .sim__handover {
+  display: none;
+}
+
+.sim__hud[data-mode='menu'] .sim__marks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.6rem, 5svh, 3rem);
+}
+
+.sim__hud[data-mode='menu'] .sim-mark {
+  position: static;
+  visibility: visible;
+  translate: none;
+  font-size: clamp(0.8rem, 1.1vw, 1.1rem);
+}
+
+.sim__hud[data-mode='menu'] .sim-mark::after,
+.sim__hud[data-mode='menu'] .sim-mark__distance {
+  display: none;
+}
+
+/* ---------- arrival panel ---------- */
+
+.sim-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  width: min(100%, 31rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  color: #f4ece5;
+  background: rgb(14 13 20 / 0.74);
+  border-left: 1px solid rgb(255 255 255 / 0.1);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  backdrop-filter: blur(22px) saturate(1.15);
+  pointer-events: auto;
+  transform: translateX(102%);
+  visibility: hidden;
+  transition:
+    transform 0.75s cubic-bezier(0.2, 0.75, 0.2, 1),
+    visibility 0s linear 0.75s;
+}
+
+.sim-panel[data-open] {
+  transform: none;
+  visibility: visible;
+  transition:
+    transform 0.75s cubic-bezier(0.2, 0.75, 0.2, 1),
+    visibility 0s;
+}
+
+.sim-panel__inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: clamp(2.2rem, 8svh, 5rem) clamp(1.6rem, 3vw, 3rem) clamp(1.6rem, 5svh, 3rem);
+}
+
+.sim-panel__eyebrow {
+  margin: 0 0 1.2rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: #e9a877;
+}
+
+.sim-panel__title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(2.2rem, 3.2vw, 3.2rem);
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.sim-panel__intro {
+  margin: 1.2rem 0 0;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: rgb(244 236 229 / 0.74);
+}
+
+.sim-panel__list {
+  margin: clamp(1.8rem, 5svh, 3rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sim-panel__entry {
+  padding: 1.4rem 0 1.5rem;
+  border-top: 1px solid rgb(244 236 229 / 0.18);
+}
+
+.sim-panel__index {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: #e9a877;
+}
+
+.sim-panel__entry-title {
+  margin: 0.8rem 0 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.6rem;
+  line-height: 1.15;
+}
+
+.sim-panel__entry-text {
+  margin: 0.6rem 0 0;
+  font-size: 0.93rem;
+  line-height: 1.65;
+  color: rgb(244 236 229 / 0.7);
+}
+
+.sim-panel__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.55rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sim-panel__tags li {
+  padding: 0.42em 0.85em;
+  border: 1px solid rgb(244 236 229 / 0.22);
+  border-radius: 99px;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: rgb(244 236 229 / 0.84);
+}
+
+.sim-panel__resume {
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 2.2rem;
+}
+
+/* ---------- phones: panel rises from the bottom, read-outs tighten ---------- */
+
+@media (max-width: 700px) {
+  .sim-panel {
+    top: auto;
+    width: 100%;
+    max-height: 74%;
+    border-left: 0;
+    border-top: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 1.2rem 1.2rem 0 0;
+    transform: translateY(102%);
+  }
+
+  .sim__keys {
+    right: auto;
+    left: 50%;
+    bottom: clamp(4.6rem, 12svh, 6.5rem);
+    width: max-content;
+    max-width: 92vw;
+    transform: translateX(-50%);
+  }
+
+  .sim__instruments {
+    left: 50%;
+    width: max-content;
+    transform: translateX(-50%);
+  }
+
+  .sim-mark[data-side='left'],
+  .sim-mark[data-side='right'] {
+    top: calc(39% + var(--slot) * 3.6em);
+  }
+
+  .sim__handover {
+    top: 15%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-panel {
+    transition: none;
+  }
+}
