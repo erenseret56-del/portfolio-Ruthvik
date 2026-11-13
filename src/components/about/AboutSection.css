@@ -186,6 +186,15 @@
   color: rgb(244 236 229 / 0.66);
 }
 
+/* ---------- onward link, centred under the cards ---------- */
+
+.about__next {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(2.5rem, 9svh, 5.5rem);
+}
+
 /* ---------- narrow screens: one column ---------- */
 
 @media (max-width: 860px) {
@@ -208,6 +217,11 @@
   .about__focus {
     grid-template-columns: minmax(0, 1fr);
     margin-top: clamp(2.6rem, 8svh, 4rem);
+  }
+
+  .about__next .flight-link {
+    font-size: clamp(0.66rem, 2.6vw, 0.92rem);
+    letter-spacing: 0.36em;
   }
 }
 

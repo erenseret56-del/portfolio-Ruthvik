@@ -1,4 +1,5 @@
 import type { MouseEvent, RefObject } from 'react'
+import { FlightLink } from '../FlightLink'
 import { AirfieldBackdrop } from './AirfieldBackdrop'
 import './AboutSection.css'
 
@@ -24,13 +25,15 @@ interface AboutSectionProps {
   /** true whenever any of the page can be seen, including while it is still arriving */
   visible: boolean
   onHome: () => void
+  /** starts the move to the next page; not wired up until that page exists */
+  onNext?: () => void
 }
 
 /**
  * The page beyond the hero. It sits over the sky as its own scrolling layer; the transition hook moves it.
  * data-sky-text and data-horizon tell the backdrop where the words are, so its horizon falls between them.
  */
-export function AboutSection({ ref, active, visible, onHome }: AboutSectionProps) {
+export function AboutSection({ ref, active, visible, onHome, onNext }: AboutSectionProps) {
   const home = (e: MouseEvent) => {
     e.preventDefault()
     onHome()
@@ -82,6 +85,10 @@ export function AboutSection({ ref, active, visible, onHome }: AboutSectionProps
               </li>
             ))}
           </ul>
+
+          <div className="about__next" data-about-item>
+            <FlightLink label="Take the controls" onClick={onNext} />
+          </div>
         </div>
       </div>
     </section>
