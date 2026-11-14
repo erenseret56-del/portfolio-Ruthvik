@@ -7,6 +7,7 @@ import { sim } from '../../sim/simState'
 import { Aircraft } from './Aircraft'
 import { CloudLayers } from './CloudLayers'
 import { Contrail } from './Contrail'
+import { EngineSmoke } from './EngineSmoke'
 import { SimBeacons } from './SimBeacons'
 import { SimFlight } from './SimFlight'
 import { SimTrail } from './SimTrail'
@@ -107,6 +108,7 @@ export function HeroScene({ onReady }: { onReady: () => void }) {
       <CloudLayers />
       <Aircraft />
       <Contrail />
+      <EngineSmoke />
       <SimBeacons />
       <SimTrail />
     </>
