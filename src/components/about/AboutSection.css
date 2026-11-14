@@ -22,35 +22,6 @@
   min-height: 100%;
 }
 
-/* while the aircraft passes, the page is only uncovered below its tail */
-.about[data-wipe] {
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, transparent var(--wipe-y), #000 calc(var(--wipe-y) + var(--wipe-feather)));
-  mask-image: linear-gradient(to bottom, transparent var(--wipe-y), #000 calc(var(--wipe-y) + var(--wipe-feather)));
-}
-
-/* last light along the rising edge of the page */
-.horizon-glow {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 4;
-  height: 30vh;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    rgb(255 196 140 / 0) 0%,
-    rgb(255 190 132 / 0.2) 38%,
-    rgb(238 150 96 / 0.3) 62%,
-    rgb(160 96 78 / 0.12) 86%,
-    rgb(120 80 80 / 0) 100%
-  );
-  will-change: transform;
-}
-
 .about__inner {
   position: relative;
   z-index: 1;
