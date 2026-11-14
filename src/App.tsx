@@ -6,10 +6,9 @@ import { useHorizonTransition } from './components/useHorizonTransition'
 
 function App() {
   const hero = useRef<HTMLElement>(null)
-  const glow = useRef<HTMLDivElement>(null)
   const about = useRef<HTMLElement>(null)
   const simulator = useRef<HTMLElement>(null)
-  const { view, goToAbout, goToHero, goToSim, leaveSim } = useHorizonTransition(hero, glow, about, simulator)
+  const { view, goToAbout, goToHero, goToSim, leaveSim } = useHorizonTransition(hero, about, simulator)
 
   // the simulator has no page of its own behind it: it is the hero's sky, flown
   const flying = view === 'boarding' || view === 'sim' || view === 'landing'
@@ -19,7 +18,6 @@ function App() {
     <main>
       <HeroSection ref={hero} active={view === 'hero'} covered={view === 'about'} bare={flying} onExplore={goToAbout} />
       <SimSection ref={simulator} active={view === 'sim'} live={flying} onLeave={leaveSim} />
-      <div className="horizon-glow" ref={glow} aria-hidden="true" />
       <AboutSection ref={about} active={view === 'about'} visible={aboutOnScreen} onHome={goToHero} onNext={goToSim} />
     </main>
   )

@@ -1,13 +1,6 @@
 import gsap from 'gsap'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
-import {
-  CRUISE_TRAIL_FADE,
-  exitDistance,
-  flight,
-  flybyPath,
-  flybyTailNdcY,
-  heroLayout,
-} from './hero/flightState'
+import { CRUISE_TRAIL_FADE, exitDistance, flight, heroLayout } from './hero/flightState'
 import { requestSimSky, startSim, stopSim } from './sim/simState'
 
 /** The three places a visitor can be, each with its own address. */
@@ -23,20 +16,18 @@ const pageFromUrl = (): Page => {
 
 type Ref<T extends HTMLElement> = RefObject<T | null>
 
+/** seconds the smoke needs, after the aircraft leaves the top of the frame, to finish covering it */
+const SMOKE_FILL_TIME = 0.1
+
 /**
  * Moves between the pages, each as a piece of flight.
  *
  * hero -> about: the aircraft accelerates out of the hero and drags the name away with it, then makes a
- *   close climbing pass up the screen with the About page rising in its wake.
+ *   close climbing pass up the screen that buries the sky in engine smoke; the About page clears out of it.
  * about -> sim: the airfield drops away beneath you and you are in the hero's sky, at the controls.
  * Going back reverses each: the About page rises over the simulator, or lowers off the hero.
  */
-export function useHorizonTransition(
-  hero: Ref<HTMLElement>,
-  glow: Ref<HTMLElement>,
-  about: Ref<HTMLElement>,
-  simulator: Ref<HTMLElement>,
-) {
+export function useHorizonTransition(hero: Ref<HTMLElement>, about: Ref<HTMLElement>, simulator: Ref<HTMLElement>) {
   const [view, setView] = useState<View>(pageFromUrl)
   const current = useRef<View>(view)
   /** kept after it finishes so that going back can rewind everything it moved */
@@ -72,9 +63,8 @@ export function useHorizonTransition(
 
   const toAbout = useCallback(() => {
     const heroEl = hero.current
-    const glowEl = glow.current
     const aboutEl = about.current
-    if (current.current !== 'hero' || !heroEl || !glowEl || !aboutEl) return
+    if (current.current !== 'hero' || !heroEl || !aboutEl) return
     show('leaving')
     requestSimSky()
 
@@ -95,7 +85,6 @@ export function useHorizonTransition(
     const { width, height } = heroEl.getBoundingClientRect()
     const aspect = width / height
     const layout = heroLayout(aspect)
-    const pass = flybyPath(layout)
     const fades = gsap.utils.toArray<HTMLElement>('[data-hero-fade]', heroEl)
     const cta = heroEl.querySelector('[data-hero-cta]')
     // glyphs nearest the aircraft are caught by its wake first
@@ -105,31 +94,19 @@ export function useHorizonTransition(
       .sort((a, b) => b.x - a.x)
       .map((c) => c.el)
 
-    // the About page is uncovered from the bottom up, its soft upper edge riding on the aircraft's tail
-    const viewport = window.innerHeight
-    const feather = Math.round(viewport * 0.18)
-    const wipe = () => {
-      const tail = (0.5 - 0.5 * flybyTailNdcY(flight.flyby, pass)) * viewport
-      const edge = Math.min(viewport, tail - feather / 2)
-      aboutEl.style.setProperty('--wipe-y', `${edge}px`)
-      glowEl.style.transform = `translate3d(0, ${edge}px, 0)`
-    }
     const beginPass = () => {
       flight.closeUp = true
-      aboutEl.style.setProperty('--wipe-feather', `${feather}px`)
-      glowEl.style.height = `${feather}px`
-      wipe()
-      aboutEl.dataset.wipe = ''
-      gsap.set(items, { autoAlpha: 0 })
-      gsap.set([aboutEl, glowEl], { autoAlpha: 1 })
     }
-    const endPass = () => {
-      delete aboutEl.dataset.wipe
-      gsap.set(glowEl, { autoAlpha: 0 })
-      arrive()
+    // by now the scene has filled the whole frame with smoke (EngineSmoke): the page clears out of it.
+    // Kept out of the departure timeline, which is rewound on the way back and must not touch the page.
+    const clearSmoke = () => {
+      gsap.set(items, { autoAlpha: 0 })
+      running.current = gsap
+        .timeline({ onComplete: arrive })
+        .fromTo(aboutEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 1.3, ease: 'power2.inOut' })
     }
 
-    const tl = gsap.timeline({ onComplete: endPass })
+    const tl = gsap.timeline({ onComplete: clearSmoke })
     tl.to(cta, { autoAlpha: 0, duration: 0.35, ease: 'power1.out' }, 0)
       // 1. the aircraft pulls away to the right, taking the name and its trail with it
       .to(flight, { along: exitDistance(layout, aspect), duration: 1.8, ease: 'power2.in', overwrite: 'auto' }, 0)
@@ -142,12 +119,14 @@ export function useHorizonTransition(
         0.15,
       )
       .to(flight, { trailOpacity: 0, duration: 0.6, ease: 'power1.in' }, 1.2)
-      // 2. it comes back up from under the frame, close, and the next page rises behind it
+      // 2. it comes back up from under the frame, close, trailing smoke that goes on to fill the frame
       .call(beginPass, undefined, 1.85)
-      .fromTo(flight, { flyby: 0 }, { flyby: 1, duration: 2.8, ease: 'none', onUpdate: wipe }, 1.85)
+      .fromTo(flight, { flyby: 0 }, { flyby: 1, duration: 2.8, ease: 'none' }, 1.85)
+      // 3. a beat for the smoke to close over the top of the frame after the aircraft has gone
+      .to({}, { duration: SMOKE_FILL_TIME })
     departure.current = tl
     running.current = tl
-  }, [hero, glow, about, show, revealAboutText])
+  }, [hero, about, show, revealAboutText])
 
   // ---------- about -> hero ----------
 
@@ -250,7 +229,8 @@ export function useHorizonTransition(
   /** Go to a page from wherever we have settled, by the flight between them if there is one. */
   const travel = useCallback(
     (to: Page) => {
-      running.current?.progress(1)
+      // finish whatever is in the air; one move can hand over to the next (flight, then the page clearing)
+      for (let i = 0; i < 4 && running.current && running.current.progress() < 1; i++) running.current.progress(1)
       const from = current.current
       if (from === to) return
       if (from === 'hero' && to === 'about') toAbout()
