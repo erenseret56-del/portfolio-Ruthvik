@@ -122,8 +122,8 @@ export const FLYBY_DIR: [number, number, number] = [
   -Math.sin(FLYBY_PITCH),
 ]
 
-/** Tail height (NDC, +1 = top edge) at which the pass ends: far enough out of frame to take the wipe's soft edge with it. */
-const FLYBY_EXIT_NDC = 1.2
+/** Tail height (NDC, +1 = top edge) at which the pass ends: just out of frame. */
+const FLYBY_EXIT_NDC = 1.25
 
 export interface FlybyPath {
   /** camera-space start of the aircraft's centre: x, y, depth */
@@ -148,7 +148,7 @@ export function flybyPath(layout: HeroLayout): FlybyPath {
   return { x0: -0.5 * dx * length, y0, depth0: FLYBY_START_DEPTH, length, tan }
 }
 
-/** Screen height of the aircraft's tail (NDC) at pass progress p; the page wipe follows it. */
+/** Screen height of the aircraft's tail (NDC) at pass progress p; the front of the smoke bank follows it. */
 export function flybyTailNdcY(p: number, path: FlybyPath) {
   const s = p * path.length - TAIL_REACH
   return (path.y0 + s * FLYBY_DIR[1]) / ((path.depth0 - s * FLYBY_DIR[2]) * path.tan)
