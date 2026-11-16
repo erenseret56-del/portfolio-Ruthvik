@@ -35,8 +35,151 @@ vec3 belowHorizon(float lon, float lat) {
 }
 `
 
+/**
+ * What the simulator adds to the photograph: the first stars in the darker, clearer parts of the sky, and
+ * the country far below, seen through breaks in the cloud deck, with its towns and roads lit for the evening.
+ */
+const simWorld = /* glsl */ `
+uniform vec3 uWorld; // how far the air mass has slid under the camera (same offset the clouds use)
+uniform float uSim;
+uniform float uTime;
+
+/** metres from the aircraft's starting height down to the ground */
+const float GROUND_DEPTH = 10500.0;
+
+float hash12(vec2 p) {
+  uvec2 q = uvec2(ivec2(floor(p))) * uvec2(1597334673u, 3812015801u);
+  uint n = (q.x ^ q.y) * 1597334673u;
+  return float(n) * (1.0 / 4294967295.0);
+}
+float vnoise2(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash12(i), hash12(i + vec2(1.0, 0.0)), u.x),
+    mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), u.x),
+    u.y
+  );
+}
+
+// gradient noise, 0..1: unlike vnoise2 it has no square lattice to show through when it is thresholded
+float gnoise2(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float a = 6.2831853 * hash12(i), b = 6.2831853 * hash12(i + vec2(1.0, 0.0));
+  float c = 6.2831853 * hash12(i + vec2(0.0, 1.0)), d = 6.2831853 * hash12(i + vec2(1.0, 1.0));
+  float va = dot(vec2(cos(a), sin(a)), f);
+  float vb = dot(vec2(cos(b), sin(b)), f - vec2(1.0, 0.0));
+  float vc = dot(vec2(cos(c), sin(c)), f - vec2(0.0, 1.0));
+  float vd = dot(vec2(cos(d), sin(d)), f - vec2(1.0, 1.0));
+  return 0.5 + 0.7 * mix(mix(va, vb, u.x), mix(vc, vd, u.x), u.y);
+}
+
+// g: position on a grid over the sky, pix: size of a pixel on that grid, raw: the photograph at this point
+vec3 stars(vec2 g, float pix, float lat, vec3 raw) {
+  vec2 id = floor(g);
+  float h = hash12(id);
+  // fewer of them where pixels are coarse (small screens), or the sky turns to snow
+  if (h > 0.6 * clamp(0.05 / pix, 0.22, 1.0)) return vec3(0.0);
+  vec2 at = 0.2 + 0.6 * vec2(hash12(id + vec2(17.0, 5.0)), hash12(id + vec2(3.0, 41.0)));
+  float mag = pow(hash12(id + vec2(71.0, 29.0)), 4.0);
+  // never smaller than a pixel, so a star is steady instead of flickering as the camera turns
+  float r = max(0.028, pix * 0.95) * (1.0 + mag);
+  vec2 d = fract(g) - at;
+  float dotv = exp(-dot(d, d) / (r * r));
+  float twinkle = 0.72 + 0.28 * sin(uTime * (1.4 + 3.2 * h) + h * 90.0);
+  // stars belong to open sky: dark, blue, and well clear of the horizon haze
+  float lum = dot(raw, vec3(0.3, 0.55, 0.15));
+  float open = smoothstep(0.6, 0.3, lum) * smoothstep(-0.05, 0.07, raw.b - raw.r) * smoothstep(0.03, 0.17, lat);
+  vec3 tint = mix(vec3(1.0, 0.93, 0.84), vec3(0.84, 0.91, 1.0), fract(h * 37.0));
+  return tint * dotv * twinkle * open * (0.38 + 1.25 * mag);
+}
+
+// The ground is seen from so far off that everything on it is finer than a pixel, so its lights are drawn in
+// screen terms: gx, gy are how far the ground point moves per pixel across and down the screen, det their
+// cross product. A ground offset divided through them is that same offset in pixels.
+vec2 toPixels(vec2 metres, vec2 gx, vec2 gy, float det) {
+  return vec2(metres.x * gy.y - metres.y * gy.x, gx.x * metres.y - gx.y * metres.x) / det;
+}
+
+// one lamp somewhere in each cell of a grid, drawn as a round pin-point about a pixel across
+vec3 lampGrid(vec2 p, float cell, vec2 gx, vec2 gy, float det, float density, vec2 seed) {
+  vec2 g = p / cell;
+  vec2 id = floor(g) + seed;
+  float h = hash12(id);
+  if (h > density) return vec3(0.0);
+  vec2 at = 0.32 + 0.36 * vec2(hash12(id + vec2(11.0, 3.0)), hash12(id + vec2(5.0, 23.0)));
+  vec2 d = toPixels((fract(g) - at) * cell, gx, gy, det);
+  float mag = hash12(id + vec2(37.0, 59.0));
+  mag *= mag * mag;
+  float r = 0.72 + 0.3 * mag;
+  float twinkle = 0.78 + 0.22 * sin(uTime * (1.5 + 4.0 * mag + 3.0 * h) + h * 70.0);
+  // mostly sodium orange, with the odd white one
+  vec3 tint = mix(vec3(1.0, 0.68, 0.36), vec3(1.0, 0.92, 0.78), step(0.8, fract(h * 57.0 / max(density, 0.01))));
+  return tint * exp(-dot(d, d) / (r * r)) * (0.42 + 1.25 * mag) * twinkle;
+}
+
+// lamps on a grid that is always a few pixels across, cross-faded between sizes, so a town glitters the same
+// from any height instead of smearing into a glow or breaking into blocks
+vec3 glitter(vec2 p, float px, vec2 gx, vec2 gy, float det, float density, vec2 seed) {
+  float level = log2(max(px, 0.5) * 5.0);
+  float whole = floor(level);
+  float cell = exp2(whole);
+  vec3 fine = lampGrid(p, cell, gx, gy, det, density, seed + whole * 7.0);
+  vec3 coarse = lampGrid(p, cell * 2.0, gx, gy, det, density, seed + (whole + 1.0) * 7.0);
+  return mix(fine, coarse, level - whole);
+}
+
+// a thread of light along the lines of a (bent) grid of roads, held to about a pixel wide
+float roads(vec2 p, float spacing, vec2 gx, vec2 gy, float det) {
+  vec2 q = p / spacing;
+  vec2 off = (fract(q) - 0.5) * spacing;
+  float a = length(toPixels(vec2(off.x, 0.0), gx, gy, det));
+  float b = length(toPixels(vec2(0.0, off.y), gx, gy, det));
+  float d = min(a, b);
+  // broken, as real roads are lit in stretches
+  float stretch = smoothstep(0.35, 0.6, vnoise2(q * 5.0 + 13.0));
+  return exp(-d * d / 0.55) * (0.35 + 0.65 * stretch);
+}
+
+// p: ground position (m), t: distance along the ray (m)
+vec3 groundBelow(vec2 p, float t, vec2 gx, vec2 gy, vec3 haze) {
+  float det = gx.x * gy.y - gx.y * gy.x;
+  det = (det < 0.0 ? -1.0 : 1.0) * max(abs(det), 1e-4);
+  float px = max(length(gx), length(gy));
+  vec2 km = p / 1000.0;
+
+  // where people live: broad towns with denser middles, thinned by parks, water and dark quarters
+  mat2 turn = mat2(0.8, -0.6, 0.6, 0.8);
+  float n = gnoise2(km * 0.21) * 0.6 + gnoise2(turn * km * 0.55 + 31.7) * 0.4;
+  float town = smoothstep(0.43, 0.56, n);
+  float centre = smoothstep(0.53, 0.66, n);
+  float quarter = smoothstep(0.36, 0.6, gnoise2(turn * km * 1.7 + 11.0) * 0.6 + gnoise2(km * 4.9 + 4.0) * 0.4);
+  float lived = town * (0.3 + 0.7 * quarter) * (0.55 + 0.45 * centre);
+
+  // dusk country: soft patches of field and wood, a little paler where it is built on
+  float tone = 0.85 + 0.7 * (gnoise2(turn * km * 0.8 + 5.0) - 0.5) + 0.45 * (gnoise2(km * 3.3 + 19.0) - 0.5);
+  vec3 land = vec3(0.07, 0.085, 0.118) * tone;
+  land = mix(land, vec3(0.105, 0.1, 0.112), town * 0.5);
+  land += vec3(1.0, 0.68, 0.36) * (0.022 * lived + 0.03 * centre * quarter);
+
+  vec2 bend = 900.0 * vec2(vnoise2(km * 0.23 + 3.0), vnoise2(km * 0.23 + 9.0));
+  vec2 streets = mat2(0.94, -0.34, 0.34, 0.94) * (p + bend * 0.9);
+  vec3 light = glitter(p, px, gx, gy, det, 0.015 + 0.9 * lived, vec2(0.0));
+  light += glitter(p, px, gx, gy, det, 0.8 * lived, vec2(91.0, 47.0));
+  vec3 sodium = vec3(1.0, 0.7, 0.38);
+  light += sodium * roads(streets, 1350.0, gx, gy, det) * town * 0.4;
+  light += sodium * roads(p + bend * 2.4, 6100.0, gx, gy, det) * 0.3;
+
+  // the air in between: country fades to the colour of the haze long before the lights do
+  vec3 col = mix(land, haze, 1.0 - exp(-t / 24000.0));
+  return col + light * exp(-t / 46000.0);
+}
+`
+
 export const skyFragment = /* glsl */ `
 ${skyLookup}
+${simWorld}
 varying vec3 vDir;
 void main() {
   vec3 d = normalize(vDir);
@@ -47,8 +190,22 @@ void main() {
   vec2 gx = dFdx(uv), gy = dFdy(uv);
   gx.x -= floor(gx.x + 0.5);
   gy.x -= floor(gy.x + 0.5);
-  vec3 col = skyGrade(textureGrad(uSky, uv, gx, gy).rgb, d);
-  col = mix(belowHorizon(lon, lat), col, smoothstep(0.004, 0.024, lat));
+  vec3 raw = textureGrad(uSky, uv, gx, gy).rgb;
+  vec3 col = skyGrade(raw, d);
+  vec3 below = belowHorizon(lon, lat);
+
+  // (screen-space derivatives are taken out here, where every pixel runs the same code)
+  float pixel = length(fwidth(d)) * 0.7071;
+  float down = min(d.y, -0.03);
+  float reach = (GROUND_DEPTH + cameraPosition.y) / -down;
+  vec2 ground = cameraPosition.xz + uWorld.xz + d.xz * reach;
+  vec2 stepX = dFdx(ground), stepY = dFdy(ground);
+  if (uSim > 0.5) {
+    const float GRID = 420.0 / 6.2831853;
+    col += stars(vec2(lon, lat) * GRID, pixel * GRID, lat, raw);
+    if (d.y < -0.03) below = groundBelow(ground, reach, stepX, stepY, below);
+  }
+  col = mix(below, col, smoothstep(0.004, 0.024, lat));
 
   // sun: small hot disc + layered bloom, screened over the photo
   float ang = acos(clamp(dot(d, uSunDir), -1.0, 1.0));
