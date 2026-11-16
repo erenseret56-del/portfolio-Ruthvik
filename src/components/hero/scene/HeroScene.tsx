@@ -10,6 +10,7 @@ import { Contrail } from './Contrail'
 import { EngineSmoke } from './EngineSmoke'
 import { SimBeacons } from './SimBeacons'
 import { SimFlight } from './SimFlight'
+import { SimTraffic } from './SimTraffic'
 import { SimTrail } from './SimTrail'
 import { SkyBackground } from './SkyBackground'
 import { SkySource } from './SkySource'
@@ -109,6 +110,7 @@ export function HeroScene({ onReady }: { onReady: () => void }) {
       <Aircraft />
       <Contrail />
       <EngineSmoke />
+      <SimTraffic />
       <SimBeacons />
       <SimTrail />
     </>
