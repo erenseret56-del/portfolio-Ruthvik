@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createAirfield, type Airfield } from './airfield'
+import { airfieldStage } from './airfieldStage'
 import './AirfieldBackdrop.css'
 
 // how public/hero/sky.jpg is used here: mirrored, and cut off a little above its own horizon so the sun
@@ -37,6 +38,19 @@ export function AirfieldBackdrop({ live }: { live: boolean }) {
     const page = el.parentElement!
     const airfield = createAirfield(canvas.current!)
     field.current = airfield
+    // the flight to the simulator directs the aircraft, and follows it across the page
+    let canvasTop = 0
+    let scene = 1000
+    airfieldStage.current = {
+      set: airfield.stage,
+      departure: airfield.departure,
+      sharpen: airfield.sharpen,
+      aircraft: () => {
+        const { x, y } = airfield.aircraft()
+        return { x, y: y + canvasTop }
+      },
+      sceneWidth: () => scene,
+    }
 
     const measure = () => {
       const width = page.clientWidth
@@ -65,6 +79,8 @@ export function AirfieldBackdrop({ live }: { live: boolean }) {
       const glowX = skyLeft + SKY_SUN_X * skyWidth
 
       const set = (name: string, px: number) => el.style.setProperty(name, `${px}px`)
+      canvasTop = horizon - up
+      scene = sceneWidth
       set('--horizon', horizon)
       set('--canvas-top', horizon - up)
       set('--canvas-height', up + down)
@@ -94,6 +110,7 @@ export function AirfieldBackdrop({ live }: { live: boolean }) {
     return () => {
       cancelled = true
       observer.disconnect()
+      airfieldStage.current = null
       airfield.dispose()
       field.current = null
     }
