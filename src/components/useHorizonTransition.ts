@@ -183,27 +183,90 @@ export function useHorizonTransition(
   const toSim = useCallback(() => {
     const aboutEl = about.current
     const simEl = simulator.current
+    const veilEl = veil.current
+    const director = airfieldStage.current
     if (current.current !== 'about' || !aboutEl || !simEl) return
-    show('boarding')
-    startSim(!flight.reducedMotion)
+    const page = aboutEl.firstElementChild as HTMLElement | null
 
     const takeControl = () => {
       gsap.set(aboutEl, { autoAlpha: 0, y: 0 })
       focusTarget.current = () => simEl
       show('sim')
     }
-    // the airfield falls away below; the instruments come up once there is sky to see them against
+
+    if (flight.reducedMotion || !veilEl || !director || !page) {
+      // no flight to watch: one page simply gives way to the other
+      show('boarding')
+      startSim(!flight.reducedMotion)
+      running.current = gsap
+        .timeline({ onComplete: takeControl })
+        .to(aboutEl, { autoAlpha: 0, duration: 0.4 }, 0)
+        .fromTo(simEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'power1.out' }, 0.1)
+      return
+    }
+
+    show('departing')
+    requestSimSky()
+    const items = aboutEl.querySelectorAll('[data-about-item]')
+    const width = aboutEl.clientWidth
+    const height = aboutEl.clientHeight
+    const scroll = aboutEl.scrollTop
+    const zoom = gsap.utils.clamp(1.8, 3, (TAKEOFF_FRAMING * width) / (0.054 * director.sceneWidth()))
+
+    // The camera is the page itself, scaled about a point that travels from wherever the visitor was looking
+    // to the aircraft, and then stays on it. vx, vy: where on the screen that point is held.
+    const cam = { scale: 1, follow: 0, vx: 0.36, vy: 0.6 }
+    /** seconds since the brakes came off; the airfield places the aircraft by it */
+    const run = { time: 0 }
+    const from = { x: cam.vx * width, y: scroll + cam.vy * height }
+    let aboard = false
+    const frame = () => {
+      if (aboard) return
+      if (run.time > 0) director.departure(run.time)
+      const aircraft = director.aircraft()
+      const x = from.x + (aircraft.x - from.x) * cam.follow
+      const y = from.y + (aircraft.y - from.y) * cam.follow
+      // never far enough to show past the edge of the page
+      const tx = gsap.utils.clamp(width - cam.scale * page.offsetWidth, 0, cam.vx * width - cam.scale * x)
+      const ty = gsap.utils.clamp(scroll + height - cam.scale * page.offsetHeight, scroll, scroll + cam.vy * height - cam.scale * y)
+      page.style.transform = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) scale(${cam.scale.toFixed(4)})`
+    }
+    // under cover of cloud: the airfield is put back as it was, and the flight begins just below the cloud tops
+    const board = () => {
+      aboard = true
+      gsap.set(aboutEl, { autoAlpha: 0, clearProps: 'overflow' })
+      gsap.set(page, { clearProps: 'transform,transformOrigin,willChange' })
+      gsap.set(items, { clearProps: 'opacity,visibility,transform' })
+      director.set('loop')
+      director.sharpen(1)
+      startSim(true, true)
+      show('boarding')
+    }
+
+    gsap.set(aboutEl, { overflow: 'hidden' })
+    gsap.set(page, { transformOrigin: '0 0', willChange: 'transform' })
+    director.sharpen(zoom)
+    director.set('ready')
+
+    const liftOff = TAKEOFF.roll + TAKEOFF.run
+    const cloud = liftOff + TAKEOFF.climb
     running.current = gsap
-      .timeline({ onComplete: takeControl })
-      .to(
-        aboutEl,
-        flight.reducedMotion
-          ? { autoAlpha: 0, duration: 0.4 }
-          : { y: window.innerHeight, duration: 1.15, ease: 'power3.inOut' },
-        0,
-      )
-      .fromTo(simEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'power1.out' }, flight.reducedMotion ? 0.1 : 0.65)
-  }, [about, simulator, show])
+      .timeline({ onUpdate: frame, onComplete: takeControl })
+      .to(items, { autoAlpha: 0, duration: 0.6, ease: 'power1.out', stagger: 0.03 }, 0)
+      .to(cam, { scale: zoom, follow: 1, duration: TAKEOFF.zoom, ease: 'power2.inOut' }, 0.2)
+      .call(() => director.set('depart'), undefined, TAKEOFF.roll)
+      .to(run, { time: TAKEOFF.flight, duration: TAKEOFF.flight, ease: 'none' }, TAKEOFF.roll)
+      // as it rotates and climbs the camera eases back and lets it rise up the frame
+      .to(cam, { scale: zoom * 0.76, vy: 0.42, duration: 3, ease: 'power1.inOut' }, liftOff - 0.4)
+      // cloud comes down over the climb, holds while the scene changes behind it, and falls away below
+      .set(veilEl, { autoAlpha: 1, yPercent: -100 }, cloud)
+      .to(veilEl, { yPercent: -33.4, duration: 1.2, ease: 'power1.in' }, cloud)
+      .call(board, undefined, cloud + 1.2)
+      .to(veilEl, { yPercent: 33.4, duration: 1.8, ease: 'power1.out' }, cloud + 1.5)
+      .set(veilEl, { autoAlpha: 0 })
+      // the instruments come up as the aircraft levels off, and with them the controls
+      .fromTo(simEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'power1.out' }, cloud + 2.7)
+  }, [about, simulator, veil, show])
 
   // ---------- simulator -> about ----------
 
