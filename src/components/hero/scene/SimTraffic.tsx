@@ -149,3 +149,121 @@ const strobe = (t: number) => {
   const p = ((t % 1.4) + 1.4) % 1.4
   return p < 0.07 || (p > 0.16 && p < 0.23) ? 1 : 0
 }
+
+/**
+ * Other traffic, far off: a handful of airliners crossing the simulator's sky on their own business,
+ * each a small sunlit shape with a strobe and a contrail. They are kept at a distance and are only scenery.
+ */
+export function SimTraffic() {
+  const gltf = useLoader(GLTFLoader, AIRCRAFT_URL)
+
+  const { root, craft, dispose } = useMemo(() => {
+    const root = new Group()
+    root.visible = false
+    const body = silhouette(gltf.scene)
+    const ribbon = new PlaneGeometry(1, 1, 16, 1)
+    ribbon.translate(0.5, 0, 0)
+    const glow = glowTexture()
+    const disposables: { dispose: () => void }[] = [body, ribbon, glow]
+
+    const craft = Array.from({ length: COUNT }, () => {
+      const paint = new ShaderMaterial({
+        vertexShader: bodyVertex,
+        fragmentShader: bodyFragment,
+        uniforms: {
+          uSunDir: { value: SUN_DIR },
+          uHaze: { value: new Vector3() },
+          uHazeAmount: { value: 0 },
+          uOpacity: { value: 0 },
+        },
+        transparent: true,
+      })
+      const vapour = new ShaderMaterial({
+        vertexShader: trailVertex,
+        fragmentShader: trailFragment,
+        uniforms: {
+          uHead: { value: new Vector3() },
+          uDir: { value: new Vector3() },
+          uLength: { value: TRAIL_LENGTH },
+          uPixel: { value: 0.001 },
+          uOpacity: { value: 0 },
+        },
+        transparent: true,
+        depthWrite: false,
+      })
+      const flash = new SpriteMaterial({ map: glow, color: '#ffffff', blending: AdditiveBlending, depthWrite: false, toneMapped: false, fog: false })
+      disposables.push(paint, vapour, flash)
+
+      const airframe = new Mesh(body, paint)
+      airframe.renderOrder = 2
+      const trail = new Mesh(ribbon, vapour)
+      trail.frustumCulled = false
+      trail.renderOrder = 1
+      const light = new Sprite(flash)
+      light.renderOrder = 3
+      root.add(trail, airframe, light)
+      const state: Flight = { x: 0, z: 0, y: 0, heading: 0, speed: 0, phase: 0 }
+      return { state, airframe, trail, light, paint, vapour, flash }
+    })
+    return { root, craft, dispose: () => disposables.forEach((d) => d.dispose()) }
+  }, [gltf])
+
+  useEffect(() => dispose, [dispose])
+
+  const memory = useMemo(() => ({ epoch: -1 }), [])
+  const forward = useMemo(() => new Vector3(), [])
+  const place = useMemo(() => new Vector3(), [])
+
+  useFrame(({ camera, size }, delta) => {
+    root.visible = sim.active
+    if (!sim.active) return
+    const fresh = memory.epoch !== sim.epoch
+    memory.epoch = sim.epoch
+    const dt = Math.min(delta, 0.05)
+    const t = flight.time
+    const pixel = (2 * Math.tan(((camera as PerspectiveCamera).fov * MathUtils.DEG2RAD) / 2)) / size.height
+
+    for (const { state: f, airframe, trail, light, paint, vapour, flash } of craft) {
+      if (fresh) dispatch(f, true)
+      f.x += Math.sin(f.heading) * f.speed * dt
+      f.z -= Math.cos(f.heading) * f.speed * dt
+      let dx = f.x - sim.x
+      let dz = f.z - sim.z
+      let distance = Math.hypot(dx, dz)
+      if (distance > RANGE + 150) {
+        dispatch(f, false)
+        dx = f.x - sim.x
+        dz = f.z - sim.z
+        distance = Math.hypot(dx, dz)
+      }
+      const seen = (1 - MathUtils.smoothstep(distance, RANGE - FADE, RANGE)) * MathUtils.smoothstep(distance, KEEP_OUT - 300, KEEP_OUT)
+      airframe.visible = trail.visible = light.visible = seen > 0.003
+      if (!airframe.visible) continue
+
+      forward.set(Math.sin(f.heading), 0, -Math.cos(f.heading))
+      const shrink = STAND_IN / Math.max(STAND_IN, place.set(dx, f.y, dz).distanceTo(camera.position))
+      place.sub(camera.position).multiplyScalar(shrink).add(camera.position)
+      airframe.position.copy(place)
+      airframe.scale.setScalar(shrink)
+      airframe.rotation.set(0, Math.PI / 2 - f.heading, 2 * MathUtils.DEG2RAD, 'YZX')
+      paint.uniforms.uOpacity.value = seen
+      // further off, and it takes on the colour of the sky it is seen against: warm toward the sun, cool away from it
+      const sunward = 0.5 + (0.5 * (dx * SUN_DIR.x + dz * SUN_DIR.z)) / Math.max(distance, 1)
+      paint.uniforms.uHaze.value.copy(COOL_AIR).lerp(WARM_AIR, sunward * sunward)
+      paint.uniforms.uHazeAmount.value = Math.min(0.62, distance / 5600)
+
+      vapour.uniforms.uHead.value.set(dx, f.y, dz).addScaledVector(forward, -26)
+      vapour.uniforms.uDir.value.copy(forward)
+      vapour.uniforms.uPixel.value = pixel
+      vapour.uniforms.uOpacity.value = seen * 0.62
+
+      const level = strobe(t + f.phase)
+      light.position.copy(place)
+      // sized by the screen, not the scene, so the flash reads at any distance
+      light.scale.setScalar(STAND_IN * pixel * (3 + 6 * level))
+      flash.opacity = seen * (0.22 + 0.78 * level)
+    }
+  })
+
+  return <primitive object={root} />
+}
