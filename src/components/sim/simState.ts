@@ -125,7 +125,7 @@ export function startSim(animated: boolean, emerging = false) {
 }
 
 export function stopSim() {
-  sim.active = sim.flying = false
+  sim.active = sim.flying = sim.emerging = false
   sim.autopilot = null
   sim.input.turn = sim.input.climb = 0
   sim.input.boost = false
@@ -146,6 +146,12 @@ export function resumeFlight() {
 export function stepSim(dt: number) {
   let { turn, climb, boost } = sim.input
   const ap = sim.autopilot
+  if (sim.emerging) {
+    turn = 0
+    climb = Math.min(1, 0.25 + -sim.alt / 14)
+    boost = false
+    if (sim.alt > -1.5) sim.emerging = false
+  }
 
   if (ap) {
     const wp = waypoint(ap.id)
@@ -175,6 +181,7 @@ export function stepSim(dt: number) {
   let target = climb * SIM.climbRate
   if (target > 0) target *= clamp((SIM.altMax - sim.alt) / 45, 0, 1)
   else target *= clamp((sim.alt - SIM.altMin) / 30, 0, 1)
+  if (sim.emerging) target *= 1.5
   sim.climb += (target - sim.climb) * ease(dt, 2.2)
   sim.alt += sim.climb * dt
   sim.pitch = Math.atan2(sim.climb, sim.speed) * 1.5
