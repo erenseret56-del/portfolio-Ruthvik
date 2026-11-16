@@ -546,7 +546,7 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
       if (alpha <= 0.01) return
       const [x, y] = at(mx, my)
       const size = r * k * 9
-      ctx.globalAlpha = Math.min(1, alpha)
+      ctx.globalAlpha = Math.min(1, alpha) * shown
       ctx.drawImage(glows[color], x - size / 2, y - size / 2, size, size)
     }
     const lightsOn = p.phase !== 'taxi' && !(p.phase === 'hold' && p.clock < 1.6)
@@ -560,7 +560,7 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
       const [lx, ly] = at(8, -2)
       const reach = 0.085 * V
       const beam = ctx.createLinearGradient(lx, 0, lx + reach, 0)
-      beam.addColorStop(0, `rgba(255,244,222,${0.2 * p.gear})`)
+      beam.addColorStop(0, `rgba(255,244,222,${0.2 * p.gear * shown})`)
       beam.addColorStop(1, 'rgba(255,244,222,0)')
       ctx.globalCompositeOperation = 'lighter'
       ctx.fillStyle = beam
@@ -572,9 +572,9 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
     }
 
     ctx.globalCompositeOperation = 'source-over'
-    ctx.globalAlpha = 1
+    ctx.globalAlpha = shown
     if (p.gear > 0) {
-      ctx.globalAlpha = p.gear
+      ctx.globalAlpha = p.gear * shown
       ctx.fillStyle = INK
       const strut = Math.max(1, 0.5 * ppm)
       for (const [gx, top] of [
@@ -587,7 +587,7 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
         ctx.arc(x, -0.6 * ppm, Math.max(1, 0.62 * ppm), 0, 6.3)
         ctx.fill()
       }
-      ctx.globalAlpha = 1
+      ctx.globalAlpha = shown
     }
     ctx.drawImage(
       sprite,
@@ -641,6 +641,44 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
       time += step
       fly(step)
       draw()
+    },
+    stage(next) {
+      if (next === stage) return
+      stage = next
+      if (next === 'ready') {
+        // already waiting, or about to be: leave it. Otherwise it is somewhere down the runway or in the air
+        const arriving = plane.phase === 'taxi' && plane.x > holdX - 0.02
+        if (plane.phase !== 'hold' && !arriving) recall = true
+        else if (plane.phase === 'hold') plane.clock = Math.max(plane.clock, 2)
+      } else if (next === 'depart') {
+        recall = false
+        shown = 1
+        lineUp()
+      } else {
+        // the loop takes over again with an empty runway, and the next departure taxis out in a few seconds
+        recall = false
+        Object.assign(plane, { phase: 'gone', clock: 4 })
+      }
+    },
+    departure(seconds) {
+      if (stage !== 'depart' || !m) return
+      // replayed from the start each time: cheap, and the same answer however unevenly frames arrive
+      lineUp()
+      const step = 1 / 120
+      for (let t = 0; t < seconds; t += step) {
+        plane.clock += step
+        departure(step)
+      }
+    },
+    sharpen(scale) {
+      if (scale === detail) return
+      detail = scale
+      if (measured) resize(measured)
+    },
+    aircraft() {
+      if (!m) return { x: 0, y: 0 }
+      const V = m.sceneWidth
+      return { x: X(plane.x) + 0.012 * V, y: Y(RUNWAY_MID) - (plane.alt + 0.0045) * V }
     },
     dispose() {
       disposed = true
