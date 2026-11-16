@@ -59,6 +59,8 @@ export const sim = {
   epoch: 0,
   /** 1 as control is handed over, running down to 0: the camera settles in from a wide establishing shot */
   intro: 0,
+  /** true while the aircraft is still climbing out of the cloud tops after take-off: nobody is flying it yet */
+  emerging: false,
   x: 0,
   z: 0,
   alt: 0,
@@ -90,16 +92,23 @@ export function requestSimSky() {
   sim.onWantSky?.()
 }
 
-/** Put the aircraft back at the start, level, heading straight ahead. */
-export function startSim(animated: boolean) {
+/** how far below its cruising height the aircraft breaks out of the cloud after taking off from the airfield */
+const EMERGE_DEPTH = 56
+
+/**
+ * Put the aircraft back at the start, level, heading straight ahead.
+ * With emerging, it starts down in the cloud tops instead and climbs out by itself before control is handed over.
+ */
+export function startSim(animated: boolean, emerging = false) {
   Object.assign(sim, {
     active: animated,
     flying: false,
     epoch: sim.epoch + 1,
     intro: 1,
+    emerging: animated && emerging,
     x: 0,
     z: 0,
-    alt: 0,
+    alt: animated && emerging ? -EMERGE_DEPTH : 0,
     climb: 0,
     heading: 0,
     bank: 0,
