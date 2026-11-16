@@ -228,11 +228,14 @@ ${skyLookup}
 uniform sampler3D uNoise;
 uniform vec3 uOffset;
 uniform float uSteps;
+uniform float uSim;
 varying vec3 vDir;
 
 const float Y_TOP = -62.0;
 const float Y_BOT = -1100.0;
 const float MAX_DIST = 15000.0;
+/** coverage below this starts to open into a break in the deck (simulator only) */
+const float GAP_EDGE = 0.45;
 
 // fine samples sit on shared spherical shells (uniform in log-distance) so neighbouring pixels agree
 const float SHELL = 0.028;
@@ -256,13 +259,17 @@ vec2 silhouette(vec3 p, float grow) {
   float h = (p.y - Y_BOT) / (Y_TOP - Y_BOT);
   if (h <= 0.0 || h >= 1.0) return vec2(0.0);
   vec3 q = p + uOffset;
-  float cov = smoothstep(0.38, 0.66, coverage(q.xz));
-  // towering cumulus where coverage is high, a low unbroken floor everywhere else
+  float c = coverage(q.xz);
+  float cov = smoothstep(0.38, 0.66, c);
+  // towering cumulus where coverage is high, a low floor everywhere else. Over the hero that floor is
+  // unbroken; in the simulator it thins to nothing where coverage is lowest, leaving breaks to see down through
+  float open = uSim * smoothstep(GAP_EDGE, GAP_EDGE - 0.07, c);
+  if (open >= 1.0) return vec2(0.0);
   float top = mix(0.26, 1.0, cov);
   float profile = smoothstep(0.0, 0.06, h) * smoothstep(top, top * 0.5, h);
-  float amount = clamp(profile * mix(0.42, 1.0, cov) + smoothstep(0.17, 0.03, h) * 0.6, 0.0, 1.0);
+  float amount = clamp(profile * mix(0.42, 1.0, cov) + smoothstep(0.17, 0.03, h) * 0.6, 0.0, 1.0) * (1.0 - open);
   float base = texture(uNoise, q / 1900.0).r;
-  float wide = min(amount + grow, 1.0);
+  float wide = min(amount + grow * (1.0 - open), 1.0);
   return vec2(
     clamp((base - (1.0 - wide)) / max(wide, 1e-3), 0.0, 1.0),
     clamp((base - (1.0 - amount)) / max(amount, 1e-3), 0.0, 1.0)
