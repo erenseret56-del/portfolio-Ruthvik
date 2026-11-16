@@ -19,10 +19,26 @@ export interface AirfieldMetrics {
   dpr: number
 }
 
+/**
+ * What the aircraft is doing. 'loop' is the page at rest: departures come and go on their own.
+ * The flight to the simulator directs it instead: 'ready' lines one up at the start of the runway and holds
+ * it there with its lights on, 'depart' sends it, briskly, and nothing follows it until the loop is restored.
+ * A staged departure does not run on the airfield's own clock: whoever directs it says how far along it is
+ * (see Airfield.departure), so the take-off stays in step with the camera move wrapped around it.
+ */
+export type AirfieldStage = 'loop' | 'ready' | 'depart'
+
 export interface Airfield {
   resize: (metrics: AirfieldMetrics) => void
   /** advance by dt seconds and draw */
   frame: (dt: number) => void
+  stage: (stage: AirfieldStage) => void
+  /** in the 'depart' stage: put the aircraft where it is this many seconds after its brakes come off */
+  departure: (seconds: number) => void
+  /** draw at this many times the usual resolution, for when the page is about to be magnified */
+  sharpen: (scale: number) => void
+  /** where the aircraft is, in css px inside the canvas (roughly the middle of its fuselage) */
+  aircraft: () => { x: number; y: number }
   dispose: () => void
 }
 
@@ -119,6 +135,13 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
   const glows = Object.fromEntries(Object.entries(COLORS).map(([name, hex]) => [name, glowSprite(hex)])) as Record<Color, HTMLCanvasElement>
 
   let m: AirfieldMetrics | null = null
+  /** the metrics as measured, before sharpen() raises their resolution */
+  let measured: AirfieldMetrics | null = null
+  let detail = 1
+  let stage: AirfieldStage = 'loop'
+  /** the aircraft's opacity: it is faded out and back when it has to be somewhere else at once */
+  let shown = 1
+  let recall = false
   let lights: Light[] = []
   let time = 0
   let disposed = false
@@ -142,7 +165,9 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
   const X = (s: number) => m!.offsetX + s * m!.sceneWidth
   const Y = (below: number) => m!.horizon + below * m!.sceneWidth
 
-  function resize(metrics: AirfieldMetrics) {
+  function resize(measuredMetrics: AirfieldMetrics) {
+    measured = measuredMetrics
+    const metrics = { ...measuredMetrics, dpr: Math.min(3, measuredMetrics.dpr * detail) }
     m = metrics
     for (const c of [canvas, backdrop]) {
       c.width = Math.round(metrics.width * metrics.dpr)
@@ -446,9 +471,22 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
 
   // ---------- the departure ----------
 
+  /** Line the aircraft up at the start of the runway, lights on. */
+  function lineUp() {
+    Object.assign(plane, { phase: 'hold', clock: 2, x: holdX, alt: 0, speed: 0, pitch: 0, climb: 0, gear: 1 })
+  }
+
   function fly(dt: number) {
     const p = plane
     p.clock += dt
+    // called back to the runway from wherever it was: out of sight, into place, back into sight
+    shown = approach(shown, recall ? 0 : 1, dt / 0.3)
+    if (recall && shown === 0) {
+      lineUp()
+      recall = false
+    }
+    if (stage === 'depart') return
+    if (stage === 'ready' && p.phase === 'hold') return
     if (p.phase === 'taxi') {
       p.speed = clamp((holdX - p.x) * 0.55, 0.0035, 0.024)
       p.x += p.speed * dt
@@ -473,9 +511,31 @@ export function createAirfield(canvas: HTMLCanvasElement): Airfield {
     }
   }
 
+  /** The take-off the visitor rides along with: a short run, a firm rotation, a steep climb out. */
+  function departure(dt: number) {
+    const p = plane
+    const span = m!.width / m!.sceneWidth
+    const run = Math.min(0.14, span * 0.5)
+    if (p.phase === 'hold') Object.assign(p, { phase: 'roll', clock: 0 })
+    if (p.phase === 'roll') {
+      p.speed += 0.022 * dt
+      p.x += p.speed * dt
+      if (p.x > holdX + run * 0.6) p.pitch = approach(p.pitch, 9.5 * D2R, 11 * D2R * dt)
+      if (p.x >= holdX + run) Object.assign(p, { phase: 'climb', clock: 0 })
+    } else if (p.phase === 'climb') {
+      p.speed += 0.006 * dt
+      p.climb = approach(p.climb, 17 * D2R, 10 * D2R * dt)
+      p.pitch = approach(p.pitch, p.climb + 3.5 * D2R, 8 * D2R * dt)
+      p.x += p.speed * Math.cos(p.climb) * dt
+      p.alt += p.speed * Math.sin(p.climb) * dt
+      p.gear = Math.max(0, 1 - (p.clock - 0.9) / 1.8)
+      if (p.alt > 0.5) Object.assign(p, { phase: 'gone', clock: 0 })
+    }
+  }
+
   function drawAircraft() {
     const p = plane
-    if (p.phase === 'gone' || !spriteReady) return
+    if (p.phase === 'gone' || !spriteReady || shown <= 0) return
     const V = m!.sceneWidth
     const ppm = (AIRCRAFT_LENGTH * V) / SPRITE.length
     const scale = ppm / SPRITE.pxPerMetre
