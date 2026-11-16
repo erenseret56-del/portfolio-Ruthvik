@@ -1,12 +1,16 @@
 import gsap from 'gsap'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { airfieldStage } from './about/airfieldStage'
 import { CRUISE_TRAIL_FADE, exitDistance, flight, heroLayout } from './hero/flightState'
 import { requestSimSky, startSim, stopSim } from './sim/simState'
 
 /** The three places a visitor can be, each with its own address. */
 type Page = 'hero' | 'about' | 'sim'
-/** A page, or one of the moves between two of them: hero <-> about (leaving / returning), about <-> sim (boarding / landing). */
-export type View = Page | 'leaving' | 'returning' | 'boarding' | 'landing'
+/**
+ * A page, or one of the moves between two of them: hero <-> about (leaving / returning), and
+ * about <-> sim (departing, then boarding / landing).
+ */
+export type View = Page | 'leaving' | 'returning' | 'departing' | 'boarding' | 'landing'
 
 const HASH: Record<Page, string> = { hero: '', about: '#about', sim: '#sim' }
 const pageFromUrl = (): Page => {
@@ -19,15 +23,38 @@ type Ref<T extends HTMLElement> = RefObject<T | null>
 /** seconds the smoke needs, after the aircraft leaves the top of the frame, to finish covering it */
 const SMOKE_FILL_TIME = 0.1
 
+// The take-off that leads into the simulator, in seconds from the click.
+const TAKEOFF = {
+  /** the slow push in on the runway */
+  zoom: 3.2,
+  /** brakes off */
+  roll: 3,
+  /** the wheels leave the ground this long into the run (the airfield's departure profile) */
+  run: 3.57,
+  /** how long the departure is played for: until well after cloud has closed over it */
+  flight: 7.5,
+  /** after lift-off, how long the climb is watched before cloud closes over it */
+  climb: 2.2,
+}
+/** share of the screen's width the aircraft is brought up to fill */
+const TAKEOFF_FRAMING = 0.24
+
 /**
  * Moves between the pages, each as a piece of flight.
  *
  * hero -> about: the aircraft accelerates out of the hero and drags the name away with it, then makes a
  *   close climbing pass up the screen that buries the sky in engine smoke; the About page clears out of it.
- * about -> sim: the airfield drops away beneath you and you are in the hero's sky, at the controls.
- * Going back reverses each: the About page rises over the simulator, or lowers off the hero.
+ * about -> sim: the words clear and the view pushes slowly in on the airfield behind them, where an aircraft
+ *   is lined up on the runway. Nobody is flying it: it rolls, lifts off and climbs into cloud by itself, comes
+ *   out above the cloud deck in the hero's sky, and only there is it handed to the visitor.
+ * Going back reverses each more simply: the About page rises over the simulator, or lowers off the hero.
  */
-export function useHorizonTransition(hero: Ref<HTMLElement>, about: Ref<HTMLElement>, simulator: Ref<HTMLElement>) {
+export function useHorizonTransition(
+  hero: Ref<HTMLElement>,
+  about: Ref<HTMLElement>,
+  simulator: Ref<HTMLElement>,
+  veil: Ref<HTMLElement>,
+) {
   const [view, setView] = useState<View>(pageFromUrl)
   const current = useRef<View>(view)
   /** kept after it finishes so that going back can rewind everything it moved */
