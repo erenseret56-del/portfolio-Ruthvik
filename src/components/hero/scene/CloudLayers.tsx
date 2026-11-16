@@ -109,6 +109,7 @@ export function CloudLayers() {
       offset.x += sim.x
       offset.z += sim.z
     }
+    skyUniforms.uWorld.value.copy(offset)
 
     gl.setRenderTarget(target)
     gl.render(cloudScene, camera)
