@@ -7,8 +7,8 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a))
 const ease = (dt: number, rate: number) => 1 - Math.exp(-dt * rate)
 
 // chase position behind and above the aircraft, and the wider shot the flight opens on
-const CHASE = { back: 150, up: 30, ahead: 210 }
-const ESTABLISH = { back: 330, up: 105 }
+const CHASE = { back: 112, up: 23, ahead: 210 }
+const ESTABLISH = { back: 270, up: 86 }
 /** the aircraft must stay comfortably inside the frame on tall screens too */
 const MIN_HORIZONTAL_FOV = 46 * MathUtils.DEG2RAD
 
