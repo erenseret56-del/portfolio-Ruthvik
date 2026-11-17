@@ -1,21 +1,22 @@
 import gsap from 'gsap'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { airfieldStage } from './about/airfieldStage'
+import { drive, startDrive, stopDrive } from './drive/driveState'
 import { CRUISE_TRAIL_FADE, exitDistance, flight, heroLayout } from './hero/flightState'
-import { requestSimSky, startSim, stopSim } from './sim/simState'
+import { descend, requestSimSky, sim, startSim, stopSim } from './sim/simState'
 
-/** The three places a visitor can be, each with its own address. */
-type Page = 'hero' | 'about' | 'sim'
+/** The four places a visitor can be, each with its own address. */
+type Page = 'hero' | 'about' | 'sim' | 'drive'
 /**
- * A page, or one of the moves between two of them: hero <-> about (leaving / returning), and
- * about <-> sim (departing, then boarding / landing).
+ * A page, or one of the moves between two of them: hero <-> about (leaving / returning),
+ * about <-> sim (departing, then boarding / landing), and sim <-> drive (dropping / climbing, then boarding).
  */
-export type View = Page | 'leaving' | 'returning' | 'departing' | 'boarding' | 'landing'
+export type View = Page | 'leaving' | 'returning' | 'departing' | 'boarding' | 'landing' | 'dropping' | 'climbing'
 
-const HASH: Record<Page, string> = { hero: '', about: '#about', sim: '#sim' }
+const HASH: Record<Page, string> = { hero: '', about: '#about', sim: '#sim', drive: '#drive' }
 const pageFromUrl = (): Page => {
   const { hash } = window.location
-  return hash === HASH.sim ? 'sim' : hash === HASH.about ? 'about' : 'hero'
+  return hash === HASH.drive ? 'drive' : hash === HASH.sim ? 'sim' : hash === HASH.about ? 'about' : 'hero'
 }
 
 type Ref<T extends HTMLElement> = RefObject<T | null>
@@ -47,12 +48,16 @@ const TAKEOFF_FRAMING = 0.24
  * about -> sim: the words clear and the view pushes slowly in on the airfield behind them, where an aircraft
  *   is lined up on the runway. Nobody is flying it: it rolls, lifts off and climbs into cloud by itself, comes
  *   out above the cloud deck in the hero's sky, and only there is it handed to the visitor.
+ * sim -> drive: the aircraft goes down into the cloud; under it is open country, where the same aircraft makes
+ *   a low pass and delivers a car by parachute (the scene plays that itself), and the car is the visitor's.
+ *   Going back, cloud closes over the road and the aircraft climbs out of the tops again.
  * Going back reverses each more simply: the About page rises over the simulator, or lowers off the hero.
  */
 export function useHorizonTransition(
   hero: Ref<HTMLElement>,
   about: Ref<HTMLElement>,
   simulator: Ref<HTMLElement>,
+  ground: Ref<HTMLElement>,
   veil: Ref<HTMLElement>,
 ) {
   const [view, setView] = useState<View>(pageFromUrl)
@@ -294,21 +299,110 @@ export function useHorizonTransition(
     running.current = tl
   }, [about, simulator, show])
 
+  // ---------- simulator -> ground ----------
+
+  const toDrive = useCallback(() => {
+    const simEl = simulator.current
+    const driveEl = ground.current
+    const veilEl = veil.current
+    if (current.current !== 'sim' || !simEl || !driveEl) return
+    show('dropping')
+
+    const takeTheWheel = () => {
+      focusTarget.current = () => driveEl
+      show('drive')
+    }
+    if (flight.reducedMotion || !veilEl || !sim.flying) {
+      // no descent to watch: one page simply gives way to the other
+      stopSim()
+      startDrive(!flight.reducedMotion)
+      running.current = gsap
+        .timeline({ onComplete: takeTheWheel })
+        .to(simEl, { autoAlpha: 0, duration: 0.4 }, 0)
+        .fromTo(driveEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'power1.out' }, 0.1)
+      return
+    }
+
+    descend()
+    // under cover of cloud the sky is swapped for the country below it, and the delivery begins
+    const swap = () => {
+      stopSim()
+      startDrive(true, true)
+      gsap.set(simEl, { autoAlpha: 0 })
+      gsap.set(driveEl, { autoAlpha: 1 })
+    }
+    running.current = gsap
+      .timeline({ onComplete: takeTheWheel })
+      .to(simEl, { autoAlpha: 0, duration: 0.5, ease: 'power1.out' }, 0)
+      // the cloud tops come up over the diving aircraft, and are left behind above
+      .set(veilEl, { autoAlpha: 1, yPercent: 33.4 }, 0.4)
+      .to(veilEl, { yPercent: -33.4, duration: 1.3, ease: 'power1.in' }, 0.4)
+      .call(swap, undefined, 1.7)
+      .to(veilEl, { yPercent: -100, duration: 1.7, ease: 'power1.out' }, 2)
+      .set(veilEl, { autoAlpha: 0 })
+  }, [simulator, ground, veil, show])
+
+  // ---------- ground -> simulator ----------
+
+  const toSimFromDrive = useCallback(() => {
+    const simEl = simulator.current
+    const driveEl = ground.current
+    const veilEl = veil.current
+    if (current.current !== 'drive' || !simEl || !driveEl) return
+    show('climbing')
+
+    const takeControl = () => {
+      gsap.set(driveEl, { autoAlpha: 0 })
+      focusTarget.current = () => simEl
+      show('sim')
+    }
+    if (flight.reducedMotion || !veilEl || !drive.running) {
+      stopDrive()
+      startSim(!flight.reducedMotion)
+      running.current = gsap
+        .timeline({ onComplete: takeControl })
+        .to(driveEl, { autoAlpha: 0, duration: 0.4 }, 0)
+        .fromTo(simEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'power1.out' }, 0.1)
+      return
+    }
+
+    // cloud comes down over the road; above it the aircraft is already climbing out of the tops
+    const board = () => {
+      stopDrive()
+      startSim(true, true)
+      show('boarding')
+    }
+    running.current = gsap
+      .timeline({ onComplete: takeControl })
+      .to(driveEl, { autoAlpha: 0, duration: 0.45, ease: 'power1.out' }, 0)
+      .set(veilEl, { autoAlpha: 1, yPercent: -100 }, 0.2)
+      .to(veilEl, { yPercent: -33.4, duration: 1.1, ease: 'power1.in' }, 0.2)
+      .call(board, undefined, 1.3)
+      .to(veilEl, { yPercent: 33.4, duration: 1.8, ease: 'power1.out' }, 1.6)
+      .set(veilEl, { autoAlpha: 0 })
+      .fromTo(simEl, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, ease: 'power1.out' }, 2.8)
+  }, [simulator, ground, veil, show])
+
   /** Be on a page at once, with no flight: for arriving by address, or a jump in the history that skips a page. */
   const cutTo = useCallback(
     (page: Page) => {
       const aboutEl = about.current
       const simEl = simulator.current
-      if (!aboutEl || !simEl) return
+      const driveEl = ground.current
+      if (!aboutEl || !simEl || !driveEl) return
       if (page === 'sim') startSim(!flight.reducedMotion)
       else stopSim()
+      // arriving on the ground by address, the car is simply standing on the road
+      if (page === 'drive') startDrive(!flight.reducedMotion)
+      else stopDrive()
       if (page === 'hero') restoreHero()
       else requestSimSky()
       gsap.set(aboutEl, { autoAlpha: page === 'about' ? 1 : 0, y: 0 })
       gsap.set(simEl, { autoAlpha: page === 'sim' ? 1 : 0 })
+      gsap.set(driveEl, { autoAlpha: page === 'drive' ? 1 : 0 })
       show(page)
     },
-    [about, simulator, show, restoreHero],
+    [about, simulator, ground, show, restoreHero],
   )
 
   useEffect(() => {
@@ -327,9 +421,11 @@ export function useHorizonTransition(
       else if (from === 'about' && to === 'hero') toHero()
       else if (from === 'about' && to === 'sim') toSim()
       else if (from === 'sim' && to === 'about') toAboutFromSim()
+      else if (from === 'sim' && to === 'drive') toDrive()
+      else if (from === 'drive' && to === 'sim') toSimFromDrive()
       else cutTo(to)
     },
-    [toAbout, toHero, toSim, toAboutFromSim, cutTo],
+    [toAbout, toHero, toSim, toAboutFromSim, toDrive, toSimFromDrive, cutTo],
   )
 
   // back / forward buttons: follow the address
@@ -361,5 +457,7 @@ export function useHorizonTransition(
     goToHero: useCallback(() => navigate('about', 'hero'), [navigate]),
     goToSim: useCallback(() => navigate('about', 'sim'), [navigate]),
     leaveSim: useCallback(() => navigate('sim', 'about'), [navigate]),
+    enterHorizon: useCallback(() => navigate('sim', 'drive'), [navigate]),
+    leaveDrive: useCallback(() => navigate('drive', 'sim'), [navigate]),
   }
 }
