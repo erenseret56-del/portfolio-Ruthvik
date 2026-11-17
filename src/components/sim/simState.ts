@@ -27,7 +27,7 @@ export const SIM = {
   rearmRadius: 480,
 }
 
-export type DestinationId = 'projects' | 'skills' | 'hobbies'
+export type DestinationId = 'horizon'
 
 export interface Waypoint {
   id: DestinationId
@@ -35,12 +35,8 @@ export interface Waypoint {
   z: number
 }
 
-/** Ahead, right and left of where the flight begins. */
-export const WAYPOINTS: Waypoint[] = [
-  { id: 'hobbies', x: 0, z: -SIM.range },
-  { id: 'projects', x: SIM.range, z: 0 },
-  { id: 'skills', x: -SIM.range, z: 0 },
-]
+/** One beacon, straight ahead of where the flight begins: the way down to the ground. */
+export const WAYPOINTS: Waypoint[] = [{ id: 'horizon', x: 0, z: -SIM.range }]
 
 /** Where a destination's label belongs on screen (css px), or which edge it lies beyond. */
 export interface Mark {
@@ -61,6 +57,8 @@ export const sim = {
   intro: 0,
   /** true while the aircraft is still climbing out of the cloud tops after take-off: nobody is flying it yet */
   emerging: false,
+  /** true once the aircraft has been sent down through the cloud to the ground: nobody is flying it any more */
+  descending: false,
   x: 0,
   z: 0,
   alt: 0,
@@ -86,10 +84,29 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 const ease = (dt: number, rate: number) => 1 - Math.exp(-dt * rate)
 const waypoint = (id: DestinationId) => WAYPOINTS.find((w) => w.id === id)!
 
+const waiting = new Set<() => void>()
+
 export function requestSimSky() {
   if (sim.wantSky) return
   sim.wantSky = true
   sim.onWantSky?.()
+  waiting.forEach((fn) => fn())
+  waiting.clear()
+}
+
+/**
+ * Run fn once the visitor has left the hero (at once, if they already have): the moment to start fetching
+ * what only the pages beyond it need. Returns a way to withdraw the request.
+ */
+export function whenBeyondHero(fn: () => void) {
+  if (sim.wantSky) {
+    fn()
+    return () => {}
+  }
+  waiting.add(fn)
+  return () => {
+    waiting.delete(fn)
+  }
 }
 
 /** how far below its cruising height the aircraft breaks out of the cloud after taking off from the airfield */
@@ -106,6 +123,7 @@ export function startSim(animated: boolean, emerging = false) {
     epoch: sim.epoch + 1,
     intro: 1,
     emerging: animated && emerging,
+    descending: false,
     x: 0,
     z: 0,
     alt: animated && emerging ? -EMERGE_DEPTH : 0,
@@ -125,7 +143,7 @@ export function startSim(animated: boolean, emerging = false) {
 }
 
 export function stopSim() {
-  sim.active = sim.flying = sim.emerging = false
+  sim.active = sim.flying = sim.emerging = sim.descending = false
   sim.autopilot = null
   sim.input.turn = sim.input.climb = 0
   sim.input.boost = false
@@ -143,9 +161,20 @@ export function resumeFlight() {
   sim.autopilot = null
 }
 
+/** Leave the sky: wings level and down into the cloud. */
+export function descend() {
+  sim.autopilot = null
+  sim.descending = true
+}
+
 export function stepSim(dt: number) {
   let { turn, climb, boost } = sim.input
   const ap = sim.autopilot
+  if (sim.descending) {
+    turn = 0
+    climb = -2.6
+    boost = false
+  }
   if (sim.emerging) {
     turn = 0
     climb = Math.min(1, 0.25 + -sim.alt / 14)
@@ -180,7 +209,7 @@ export function stepSim(dt: number) {
   // climb rate runs out smoothly at the floor (just above the cloud tops) and the ceiling
   let target = climb * SIM.climbRate
   if (target > 0) target *= clamp((SIM.altMax - sim.alt) / 45, 0, 1)
-  else target *= clamp((sim.alt - SIM.altMin) / 30, 0, 1)
+  else if (!sim.descending) target *= clamp((sim.alt - SIM.altMin) / 30, 0, 1)
   if (sim.emerging) target *= 1.5
   sim.climb += (target - sim.climb) * ease(dt, 2.2)
   sim.alt += sim.climb * dt
@@ -195,7 +224,7 @@ export function stepSim(dt: number) {
     const w = waypoint(sim.disarmed)
     if (Math.hypot(w.x - sim.x, w.z - sim.z) > SIM.rearmRadius) sim.disarmed = null
   }
-  if (ap?.mode !== 'orbit') {
+  if (ap?.mode !== 'orbit' && !sim.descending) {
     for (const w of WAYPOINTS) {
       if (w.id === sim.disarmed || (ap && ap.id !== w.id)) continue
       // the autopilot is allowed to call it a little earlier than a hand-flown pass
