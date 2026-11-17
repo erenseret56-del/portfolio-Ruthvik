@@ -20,3 +20,19 @@ sky.jpg, env.hdr, ../sim/sky-360.jpg  (sky.jpg is also the About page's sky; sky
 
 Fonts (bundled via @fontsource)
   Cormorant Garamond and Inter, both SIL Open Font License 1.1.
+
+../horizon/cargo.glb  (the transport flown in the simulator, and the one that delivers the car)
+  Lockheed C-130 Hercules model by Emmanuel Baranger (2008) from the FlightGear aircraft collection
+  https://github.com/FGMEMBERS/C130  (Models/c130.ac, Interior/interior.ac, Propellers/propeller.ac)
+  License: GNU GPL v2. Converted from AC3D to glTF 2.0 with its default livery; the landing gear and
+  its doors are left out, and the propellers are redrawn as discs.
+  If this model is redistributed, keep this notice and the GPL v2 terms with it.
+
+../horizon/coupe.glb, ../horizon/wheel.webp  (the car)
+  "Kanagawa Z35" sports car from Speed Dreams (sc-kanagawa-z35gts)
+  https://forge.a-lec.org/speed-dreams/sc-kanagawa-z35gts
+  Made by William Brun (CC BY); rebuilt in low poly and adapted for Speed Dreams by W-E-C;
+  texture and mesh improvements copyright 2012 Eckhard M. Jaeger.
+  License: Free Art License (https://artlibre.org). Converted from AC3D to glTF 2.0; repainted blue
+  in the page, wheels rebuilt from the model's wheel texture.
+  If this model is redistributed, keep this notice and the Free Art License terms with it.
