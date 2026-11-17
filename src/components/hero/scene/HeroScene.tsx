@@ -3,11 +3,17 @@ import { useEffect, useLayoutEffect, useMemo } from 'react'
 import { EquirectangularReflectionMapping, MathUtils, type PerspectiveCamera } from 'three'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 import { AIR_SPEED, flight, heroLayout } from '../flightState'
+import { drive } from '../../drive/driveState'
 import { sim } from '../../sim/simState'
 import { Aircraft } from './Aircraft'
+import { CargoPlane } from './CargoPlane'
 import { CloudLayers } from './CloudLayers'
 import { Contrail } from './Contrail'
+import { DriveCar } from './DriveCar'
+import { DriveDirector } from './DriveDirector'
+import { DriveWorld } from './DriveWorld'
 import { EngineSmoke } from './EngineSmoke'
+import { Parachutes } from './Parachutes'
 import { SimBeacons } from './SimBeacons'
 import { SimFlight } from './SimFlight'
 import { SimTraffic } from './SimTraffic'
@@ -47,8 +53,8 @@ function CameraRig() {
   }, [camera, layout])
 
   useFrame((_, delta) => {
-    // the simulator flies its own camera (SimFlight); take the lens back when it is done
-    if (sim.active) return
+    // the simulator and the ground each fly their own camera (SimFlight, DriveDirector); take the lens back after
+    if (sim.active || drive.active) return
     if (camera.fov !== layout.fov) {
       camera.fov = layout.fov
       camera.updateProjectionMatrix()
@@ -103,16 +109,21 @@ export function HeroScene({ onReady }: { onReady: () => void }) {
       <FlightClock />
       <SkySource />
       <SimFlight />
+      <DriveDirector />
       <CameraRig />
       <Lighting />
       <SkyBackground />
       <CloudLayers />
       <Aircraft />
+      <CargoPlane />
       <Contrail />
       <EngineSmoke />
       <SimTraffic />
       <SimBeacons />
       <SimTrail />
+      <DriveWorld />
+      <DriveCar />
+      <Parachutes />
     </>
   )
 }
