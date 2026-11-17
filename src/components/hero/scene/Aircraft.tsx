@@ -15,7 +15,9 @@ import {
 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { bobAt, flight, FLYBY_DIR, flybyPath, HEADING_YAW, heroLayout, restPosition } from '../flightState'
+import { drive } from '../../drive/driveState'
 import { sim } from '../../sim/simState'
+import { stage } from './driveStage'
 import { glowTexture } from './glow'
 import { HEADING, trailOrigins } from './vectors'
 
@@ -110,6 +112,10 @@ export function Aircraft() {
     const t = flight.time
     const bank = flight.introBank
     const group = root.current
+
+    // beyond the hero the transport takes over (CargoPlane); the airliner only stands in until that has loaded
+    group.visible = !drive.active && !(sim.active && stage.cargoReady)
+    if (!group.visible) return
 
     if (sim.active) {
       // flown by the visitor: the scene keeps the aircraft over the origin and moves the world instead
