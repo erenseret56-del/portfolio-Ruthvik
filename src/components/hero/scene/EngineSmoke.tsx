@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { BufferAttribute, DynamicDrawUsage, InstancedBufferAttribute, InstancedBufferGeometry, Mesh, ShaderMaterial, Vector2, Vector3 } from 'three'
 import { flight, FLYBY_DIR, flybyPath, flybyTailNdcY, heroLayout } from '../flightState'
+import { drive } from '../../drive/driveState'
 import { sim } from '../../sim/simState'
 import { fullscreenMesh } from './fullscreen'
 import { SUN_DIR, trailOrigins } from './vectors'
@@ -179,7 +180,8 @@ export function EngineSmoke() {
 
   useFrame(({ camera }, delta) => {
     // from the start of the pass until the hero is put back (the scene is paused once the page covers it)
-    const smoking = flight.closeUp && !sim.active && flight.flyby > 0
+    // only the hero's close pass smokes: not the simulator, and not the ground under it
+    const smoking = flight.closeUp && !sim.active && !drive.active && flight.flyby > 0
     if (!smoking) {
       if (pool.running) {
         pool.running = false
