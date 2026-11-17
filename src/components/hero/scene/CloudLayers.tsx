@@ -10,9 +10,11 @@ import {
   Vector2,
   Vector3,
   WebGLRenderTarget,
+  type Mesh,
   type WebGL3DRenderTarget,
 } from 'three'
 import { flight } from '../flightState'
+import { drive } from '../../drive/driveState'
 import { sim } from '../../sim/simState'
 import { bakeCloudNoise, fullscreenMesh, fullscreenTriangle } from './fullscreen'
 import { cloudCompositeFragment, cloudCompositeVertex, cloudFragment, rayVertex } from './shaders'
@@ -80,9 +82,13 @@ export function CloudLayers() {
     [target, cloudMaterial, composite],
   )
 
+  const layer = useRef<Mesh>(null)
   const quality = useRef({ level: window.matchMedia('(pointer: coarse)').matches ? 1 : 0, slow: 0, frames: 0 })
 
   useFrame(({ camera, size }, delta) => {
+    // on the ground the deck is not below the camera any more, and its ray march is not paid for
+    if (layer.current) layer.current.visible = !drive.active
+    if (drive.active) return
     const q = quality.current
     // drop a quality level after ~1.5s of sustained slow frames; never climb back (avoids oscillation)
     if (!flight.reducedMotion && ++q.frames > 90) {
@@ -116,5 +122,5 @@ export function CloudLayers() {
     gl.setRenderTarget(null)
   })
 
-  return <mesh geometry={fullscreenTriangle} material={composite} frustumCulled={false} renderOrder={-5} />
+  return <mesh ref={layer} geometry={fullscreenTriangle} material={composite} frustumCulled={false} renderOrder={-5} />
 }

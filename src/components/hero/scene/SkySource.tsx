@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { ClampToEdgeWrapping, LinearMipmapLinearFilter, MathUtils, NoColorSpace, RepeatWrapping, TextureLoader, type Texture } from 'three'
 import { flight, SKY } from '../flightState'
+import { drive } from '../../drive/driveState'
 import { sim } from '../../sim/simState'
 import { skyUniforms } from './skyUniforms'
 import { useSkyTexture } from './useSkyTexture'
@@ -47,7 +48,7 @@ export function SkySource() {
   }, [])
 
   useFrame(() => {
-    const full = sim.active && panorama.current
+    const full = (sim.active || drive.active) && panorama.current
     skyUniforms.uSky.value = full ? panorama.current : crop
     skyUniforms.uCrop.value[0] = (full ? 360 : SKY.lonSpan) * MathUtils.DEG2RAD
     skyUniforms.uSim.value = sim.active ? 1 : 0
