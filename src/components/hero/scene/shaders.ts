@@ -10,7 +10,7 @@ void main() {
 `
 
 /** Shared lookup into the cropped panorama (uSky) by longitude / latitude. */
-const skyLookup = /* glsl */ `
+export const skyLookup = /* glsl */ `
 uniform sampler2D uSky;
 uniform vec3 uCrop; // lonSpan, latMin, latMax (radians)
 uniform vec3 uSunDir;
