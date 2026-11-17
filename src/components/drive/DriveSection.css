@@ -1,0 +1,151 @@
+/*
+ * The ground borrows the simulator's furniture (SimSection.css: labels, key hints, the arrival panel) and adds
+ * what only it has: a film frame and a skip button for the delivery, and a speedometer.
+ */
+
+/* ---------- the delivery: a film, not a game yet ---------- */
+
+.drive__bars {
+  position: absolute;
+  inset: 0;
+  --bar: 0;
+  background:
+    linear-gradient(#08070c, #08070c) top / 100% calc(var(--bar) * 11svh) no-repeat,
+    linear-gradient(#08070c, #08070c) bottom / 100% calc(var(--bar) * 11svh) no-repeat;
+  transition: --bar 0.9s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+@property --bar {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+.drive__hud[data-mode='intro'] .drive__bars {
+  --bar: 1;
+}
+
+.drive__hud[data-mode='intro'] {
+  background: none;
+}
+
+.drive__skip {
+  position: absolute;
+  right: clamp(1.5rem, 7vw, 8rem);
+  bottom: calc(11svh + 1.4rem);
+  margin: 0;
+  padding: 0.8em 0;
+  border: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.4);
+  background: none;
+  color: rgb(255 255 255 / 0.86);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 14px rgb(22 18 32 / 0.7);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.5s ease,
+    visibility 0s linear 0.5s,
+    color 0.3s ease;
+}
+
+.drive__hud[data-mode='intro'] .drive__skip {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.8s ease 1.6s,
+    visibility 0s,
+    color 0.3s ease;
+}
+
+.drive__skip:hover {
+  color: #fff;
+}
+
+.drive__skip:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.7);
+  outline-offset: 6px;
+}
+
+/* nothing to steer until the car is on the road */
+.drive__hud[data-mode='intro'] .sim__bar,
+.drive__hud[data-mode='intro'] .sim__marks,
+.drive__hud[data-mode='intro'] .sim__keys,
+.drive__hud[data-mode='intro'] .sim__touch,
+.drive__hud[data-mode='intro'] .drive__speed,
+.drive__hud[data-mode='menu'] .drive__speed {
+  display: none;
+}
+
+/* ---------- speed ---------- */
+
+.drive__speed {
+  position: absolute;
+  left: clamp(1.5rem, 7vw, 8rem);
+  bottom: clamp(1.4rem, 5svh, 3.2rem);
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin: 0;
+  text-shadow: 0 1px 18px rgb(22 18 32 / 0.7);
+}
+
+.drive__speed-value {
+  min-width: 1.9em;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(3rem, 5vw, 5rem);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.drive__speed-unit {
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.7);
+}
+
+/* clear of the label of the place straight ahead */
+.drive__hud .sim__handover {
+  top: 9%;
+}
+
+/* the labels here only point the way: the car has to be driven there */
+.drive__hud[data-mode='flight'] .sim-mark {
+  cursor: default;
+  pointer-events: none;
+}
+
+@media (max-width: 700px) {
+  .drive__speed {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .drive__skip {
+    right: 50%;
+    translate: 50% 0;
+  }
+
+  /* three labels do not fit side by side: the two beyond the edges go below the one ahead */
+  .drive__hud .sim-mark[data-side='left'],
+  .drive__hud .sim-mark[data-side='right'] {
+    top: calc(52% + var(--slot) * 3.6em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drive__bars {
+    transition: none;
+  }
+}
