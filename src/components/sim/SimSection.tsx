@@ -18,6 +18,8 @@ interface SimSectionProps {
   /** some of it can be seen (also while arriving or leaving), so its read-outs should keep up */
   live: boolean
   onLeave: () => void
+  /** go down to the ground: the button in the beacon's panel */
+  onEnter: () => void
 }
 
 /**
@@ -26,7 +28,7 @@ interface SimSectionProps {
  * The flying itself happens in the WebGL scene (hero/scene/Sim*.tsx) from the shared state in simState.ts.
  * Without that scene (reduced motion, or no WebGL) the labels become a plain menu that opens the same panels.
  */
-export function SimSection({ ref, active, live, onLeave }: SimSectionProps) {
+export function SimSection({ ref, active, live, onLeave, onEnter }: SimSectionProps) {
   const [arrived, setArrived] = useState<DestinationId | null>(null)
   /** what the panel last showed, so its text stays put while it slides away */
   const [shown, setShown] = useState<DestinationId | null>(null)
@@ -147,6 +149,10 @@ export function SimSection({ ref, active, live, onLeave }: SimSectionProps) {
     setArrived(null)
     onLeave()
   }
+  const enter = () => {
+    setArrived(null)
+    onEnter()
+  }
 
   // touch: drag anywhere to steer, like a stick that appears under the thumb
   const drag = useRef<{ id: number; x: number; y: number } | null>(null)
@@ -202,7 +208,7 @@ export function SimSection({ ref, active, live, onLeave }: SimSectionProps) {
 
         <p className="sim__handover" aria-hidden="true">
           <span className="sim__handover-title">You have control.</span>
-          <span className="sim__handover-text">Fly to a beacon, or select one and the autopilot will take you there.</span>
+          <span className="sim__handover-text">Fly to the beacon ahead, or select it and the autopilot will take you there.</span>
         </p>
 
         <nav className="sim__marks" aria-label="Destinations">
@@ -244,7 +250,7 @@ export function SimSection({ ref, active, live, onLeave }: SimSectionProps) {
               <kbd data-key="ShiftLeft ShiftRight">Shift</kbd> full throttle
             </span>
           </p>
-          <p className="sim__legend sim__legend--touch">Drag to steer · tap a beacon to fly there</p>
+          <p className="sim__legend sim__legend--touch">Drag to steer · tap the beacon to fly there</p>
         </div>
       </div>
 
@@ -270,7 +276,12 @@ export function SimSection({ ref, active, live, onLeave }: SimSectionProps) {
                 </li>
               ))}
             </ul>
-            <FlightLink className="sim-panel__resume" label="Back to the flight" onClick={close} />
+            <div className="sim-panel__actions">
+              <FlightLink className="sim-panel__enter" label="Enter the Horizon" onClick={enter} />
+              <button type="button" className="sim-panel__stay" onClick={close}>
+                Keep flying
+              </button>
+            </div>
           </div>
         )}
       </aside>

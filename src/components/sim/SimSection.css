@@ -564,6 +564,45 @@
   padding-top: 2.2rem;
 }
 
+/* the way on, and the quieter way to stay */
+.sim-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 2rem;
+  margin-top: auto;
+  padding-top: 2.2rem;
+}
+
+.sim-panel__enter {
+  color: #ffd9a8;
+}
+
+.sim-panel__stay {
+  margin: 0 0 0.85em;
+  padding: 0.6em 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgb(244 236 229 / 0.62);
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.sim-panel__stay:hover {
+  color: #fff;
+}
+
+.sim-panel__stay:focus-visible {
+  outline: 1px solid rgb(255 255 255 / 0.7);
+  outline-offset: 6px;
+}
+
 /* ---------- phones: panel rises from the bottom, read-outs tighten ---------- */
 
 @media (max-width: 700px) {
